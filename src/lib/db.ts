@@ -423,6 +423,60 @@ async function kurangiStok(idbarang: number, kategori: string, qty: number, code
   }
 }
 
+export async function deletePenjualan(id: number) {
+  // 1. Dapatkan detail penjualan untuk mengembalikan stok
+  const { data: dtls, error: dtlErr } = await supabase
+    .from('trs_penjualan_dtl')
+    .select('*')
+    .eq('idhdr', id);
+  if (dtlErr) throw dtlErr;
+
+  // 2. Kembalikan stok masing-masing barang
+  if (dtls) {
+    for (const item of dtls) {
+      await tambahStok(item.idbarang, item.kategori, item.qty);
+    }
+  }
+
+  // 3. Hapus header penjualan (relasi cascade akan otomatis menghapus detail)
+  const { error: hdrErr } = await supabase
+    .from('trs_penjualan_hdr')
+    .delete()
+    .eq('id', id);
+  if (hdrErr) throw hdrErr;
+}
+
+export async function updatePenjualanHeader(id: number, payload: Partial<TrsPenjualanHdr>) {
+  const { data, error } = await supabase
+    .from('trs_penjualan_hdr')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as TrsPenjualanHdr;
+}
+
+async function tambahStok(idbarang: number, kategori: string, qty: number) {
+  if (kategori === 'Aksesoris') {
+    const { data } = await supabase.from('ms_aksesoris').select('qty').eq('id', idbarang).single();
+    if (data) {
+      await supabase.from('ms_aksesoris').update({ qty: (data.qty || 0) + qty, update_time: new Date().toISOString() }).eq('id', idbarang);
+    }
+  } else if (kategori === 'Kuota') {
+    const { data } = await supabase.from('ms_kuota').select('qty').eq('id', idbarang).single();
+    if (data) {
+      await supabase.from('ms_kuota').update({ qty: (data.qty || 0) + qty, update_time: new Date().toISOString() }).eq('id', idbarang);
+    }
+  } else if (kategori === 'HP') {
+    await supabase.from('ms_hp_dtl').update({ status: 'tersedia', update_time: new Date().toISOString() }).eq('id', idbarang);
+  } else if (kategori === 'HP Non Pajak') {
+    await supabase.from('ms_hp_dtl_non_pajak').update({ status: 'tersedia', update_time: new Date().toISOString() }).eq('id', idbarang);
+  } else if (kategori === 'CCTV') {
+    await supabase.from('ms_cctv_dtl').update({ status: 'tersedia', update_time: new Date().toISOString() }).eq('id', idbarang);
+  }
+}
+
 // ============================================
 // TRANSAKSI PEMBELIAN
 // ============================================

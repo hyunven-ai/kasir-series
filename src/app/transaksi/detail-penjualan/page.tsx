@@ -3,11 +3,16 @@
 import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
-import { getPenjualan } from '@/lib/db';
+import { getPenjualan, deletePenjualan, updatePenjualanHeader } from '@/lib/db';
 import { formatRupiah, formatDateTime, today, daysAgo } from '@/lib/utils';
-import type { TrsPenjualanHdr, TrsPenjualanDtl } from '@/lib/types';
+import type { TrsPenjualanHdr, TrsPenjualanDtl, MetodePembayaran } from '@/lib/types';
+import PrintReceipt from '@/components/ui/PrintReceipt';
+import { getCurrentUser } from '@/lib/auth';
 
 export default function DetailPenjualanPage() {
+  const user = getCurrentUser();
+  const isSuperAdmin = user?.role === 'super_admin';
+
   const [data, setData] = useState<TrsPenjualanHdr[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(daysAgo(30));
@@ -16,6 +21,56 @@ export default function DetailPenjualanPage() {
   const [tempTo, setTempTo] = useState(today());
   const [dtlModal, setDtlModal] = useState(false);
   const [selected, setSelected] = useState<TrsPenjualanHdr | null>(null);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editCustomer, setEditCustomer] = useState('');
+  const [editMetode, setEditMetode] = useState<MetodePembayaran>('Tunai');
+  const [editTanggal, setEditTanggal] = useState('');
+  const [editKasir, setEditKasir] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = (row: TrsPenjualanHdr) => {
+    setEditCustomer(row.customer);
+    setEditMetode(row.metode_pembayaran ?? 'Tunai');
+    const dateObj = new Date(row.tanggal_penjualan);
+    const tzOffset = dateObj.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16);
+    setEditTanggal(localISOTime);
+    setEditKasir(row.create_by ?? '');
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const updated = await updatePenjualanHeader(selected.id, {
+        customer: editCustomer,
+        metode_pembayaran: editMetode,
+        tanggal_penjualan: new Date(editTanggal).toISOString(),
+        create_by: editKasir,
+      });
+      setSelected({ ...selected, ...updated });
+      setIsEditing(false);
+      load(from, to);
+    } catch (e: any) {
+      alert(e?.message || 'Gagal menyimpan perubahan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus transaksi ini? Stok barang yang terjual akan dikembalikan ke gudang.')) return;
+    try {
+      await deletePenjualan(id);
+      setDtlModal(false);
+      setSelected(null);
+      load(from, to);
+    } catch (e: any) {
+      alert(e?.message || 'Gagal menghapus transaksi');
+    }
+  };
 
   const load = async (f: string, t: string) => {
     setLoading(true);
@@ -64,7 +119,7 @@ export default function DetailPenjualanPage() {
       key: 'actions', label: 'Aksi', width: '140px',
       render: (row: TrsPenjualanHdr) => (
         <div className="table-actions">
-          <button className="btn btn-outline btn-sm" onClick={() => { setSelected(row); setDtlModal(true); }} id={`btn-dtl-${row.id}`}>Detail</button>
+          <button className="btn btn-outline btn-sm" onClick={() => { setSelected(row); setDtlModal(true); setIsEditing(false); }} id={`btn-dtl-${row.id}`}>Detail</button>
           <button className="btn btn-secondary btn-sm" onClick={() => handlePrint(row)} id={`btn-print-${row.id}`}>🖨️</button>
         </div>
       ),
@@ -116,22 +171,67 @@ export default function DetailPenjualanPage() {
       />
 
       {/* Detail Modal */}
-      <Modal isOpen={dtlModal} onClose={() => setDtlModal(false)} title={`Detail Invoice — ${selected?.nomor_invoice}`} size="lg"
+      <Modal isOpen={dtlModal} onClose={() => { setDtlModal(false); setIsEditing(false); }} title={`Detail Invoice — ${selected?.nomor_invoice}`} size="lg"
         footer={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-secondary" onClick={() => handlePrint(selected!)} id="btn-reprint">🖨️ Cetak Ulang Struk</button>
-            <button className="btn btn-outline" onClick={() => setDtlModal(false)}>Tutup</button>
-          </div>
+          isEditing ? (
+            <div style={{ display: 'flex', gap: 8, width: '100%', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setIsEditing(false)}>Batal</button>
+              <button className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>
+                {saving ? 'Menyimpan...' : '💾 Simpan'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, width: '100%', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {isSuperAdmin && (
+                  <>
+                    <button className="btn btn-primary btn-outline" onClick={() => startEdit(selected!)}>✏️ Edit</button>
+                    <button className="btn btn-danger" onClick={() => handleDelete(selected!.id)}>🗑️ Hapus</button>
+                  </>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-secondary" onClick={() => handlePrint(selected!)} id="btn-reprint">🖨️ Cetak Ulang Struk</button>
+                <button className="btn btn-outline" onClick={() => { setDtlModal(false); setIsEditing(false); }}>Tutup</button>
+              </div>
+            </div>
+          )
         }
       >
         {selected && (
           <>
-            <div className="form-grid" style={{ marginBottom: 16 }}>
-              <div><div style={{ fontSize: 12, color: '#888' }}>Pelanggan</div><strong>{selected.customer}</strong></div>
-              <div><div style={{ fontSize: 12, color: '#888' }}>Tanggal</div><strong>{formatDateTime(selected.tanggal_penjualan)}</strong></div>
-              <div><div style={{ fontSize: 12, color: '#888' }}>Metode Pembayaran</div><strong>{selected.metode_pembayaran ?? 'Tunai'}</strong></div>
-              <div><div style={{ fontSize: 12, color: '#888' }}>Kasir</div><strong>{selected.create_by}</strong></div>
-            </div>
+            {isEditing ? (
+              <div className="form-grid" style={{ marginBottom: 16 }}>
+                <div className="form-group">
+                  <label className="form-label">Pelanggan</label>
+                  <input type="text" className="form-control" value={editCustomer} onChange={e => setEditCustomer(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Tanggal</label>
+                  <input type="datetime-local" className="form-control" value={editTanggal} onChange={e => setEditTanggal(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Metode Pembayaran</label>
+                  <select className="form-control" value={editMetode} onChange={e => setEditMetode(e.target.value as MetodePembayaran)}>
+                    <option value="Tunai">Tunai</option>
+                    <option value="Debit">Debit</option>
+                    <option value="Transfer">Transfer</option>
+                    <option value="QRIS">QRIS</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Kasir</label>
+                  <input type="text" className="form-control" value={editKasir} onChange={e => setEditKasir(e.target.value)} />
+                </div>
+              </div>
+            ) : (
+              <div className="form-grid" style={{ marginBottom: 16 }}>
+                <div><div style={{ fontSize: 12, color: '#888' }}>Pelanggan</div><strong>{selected.customer}</strong></div>
+                <div><div style={{ fontSize: 12, color: '#888' }}>Tanggal</div><strong>{formatDateTime(selected.tanggal_penjualan)}</strong></div>
+                <div><div style={{ fontSize: 12, color: '#888' }}>Metode Pembayaran</div><strong>{selected.metode_pembayaran ?? 'Tunai'}</strong></div>
+                <div><div style={{ fontSize: 12, color: '#888' }}>Kasir</div><strong>{selected.create_by}</strong></div>
+              </div>
+            )}
             <table className="data-table">
               <thead>
                 <tr><th>#</th><th>Barang</th><th>Kategori</th><th>Kode</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr>
@@ -157,6 +257,21 @@ export default function DetailPenjualanPage() {
           </>
         )}
       </Modal>
+
+      {selected && (
+        <PrintReceipt
+          invoiceNo={selected.nomor_invoice}
+          customer={selected.customer}
+          tanggalPenjualan={selected.tanggal_penjualan}
+          metodePembayaran={selected.metode_pembayaran}
+          items={((selected as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? []).map(d => ({
+            nama_barang: d.nama_barang,
+            qty: d.qty,
+            harga_jual: d.harga_jual,
+          }))}
+          total={selected.total_harga ?? 0}
+        />
+      )}
     </div>
   );
 }

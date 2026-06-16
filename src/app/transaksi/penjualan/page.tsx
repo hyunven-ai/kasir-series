@@ -5,6 +5,7 @@ import { searchBarcode, createPenjualan } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, generateInvoiceNo, today } from '@/lib/utils';
 import type { CartItem, MetodePembayaran } from '@/lib/types';
+import PrintReceipt from '@/components/ui/PrintReceipt';
 
 const METODE_OPTIONS: MetodePembayaran[] = ['Tunai', 'Debit', 'Transfer', 'QRIS'];
 
@@ -22,7 +23,15 @@ export default function PenjualanPage() {
   const [processing, setProcessing] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [lastInvoice, setLastInvoice] = useState('');
-  const printRef = useRef<HTMLDivElement>(null);
+  const [printData, setPrintData] = useState<{
+    invoiceNo: string;
+    customer: string;
+    tanggalPenjualan: string;
+    metodePembayaran: string;
+    items: CartItem[];
+    total: number;
+    bayar?: number;
+  } | null>(null);
 
   // Auto focus barcode input
   useEffect(() => {
@@ -105,6 +114,15 @@ export default function PenjualanPage() {
         }))
       );
       setLastInvoice(invoiceNo);
+      setPrintData({
+        invoiceNo,
+        customer,
+        tanggalPenjualan: new Date().toISOString(),
+        metodePembayaran: metode,
+        items: [...cart],
+        total,
+        bayar: bayar ? parseInt(bayar) : total,
+      });
       setCheckoutModal(false);
       setSuccessModal(true);
       setCart([]);
@@ -434,6 +452,18 @@ export default function PenjualanPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {printData && (
+        <PrintReceipt
+          invoiceNo={printData.invoiceNo}
+          customer={printData.customer}
+          tanggalPenjualan={printData.tanggalPenjualan}
+          metodePembayaran={printData.metodePembayaran}
+          items={printData.items}
+          total={printData.total}
+          bayar={printData.bayar}
+        />
       )}
     </div>
   );
