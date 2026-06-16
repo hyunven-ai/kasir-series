@@ -94,7 +94,7 @@ export default function KuotaPage() {
           <p className="page-subtitle">Kelola stok paket data & kuota internet</p>
         </div>
       </div>
-      <DataTable columns={columns as Parameters<typeof DataTable>[0]['columns']} data={data as Record<string, unknown>[]} loading={loading} onAdd={openAdd} addLabel="+ Tambah Kuota" />
+      <DataTable columns={columns} data={data} loading={loading} onAdd={openAdd} addLabel="+ Tambah Kuota" />
 
       <Modal isOpen={modalOpen} onClose={closeModal} title={editing ? 'Edit Kuota' : 'Tambah Kuota'} size="lg"
         footer={<>

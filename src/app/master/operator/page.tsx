@@ -77,8 +77,8 @@ export default function OperatorPage() {
         </div>
       </div>
       <DataTable
-        columns={columns as Parameters<typeof DataTable>[0]['columns']}
-        data={data as Record<string, unknown>[]}
+        columns={columns}
+        data={data}
         loading={loading} onAdd={openAdd} addLabel="+ Tambah Operator"
       />
       <Modal isOpen={modalOpen} onClose={closeModal} title={editing ? 'Edit Operator' : 'Tambah Operator'}

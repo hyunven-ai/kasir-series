@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend, type TooltipItem } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { getDashboardStats, getChartData, getKategoriSales } from '@/lib/db';
 import { formatRupiah, formatChartDate, today, daysAgo } from '@/lib/utils';
@@ -126,8 +126,8 @@ export default function DashboardPage() {
       legend: { position: 'bottom' as const, labels: { font: { size: 11 } } },
       tooltip: {
         callbacks: {
-          label: (ctx: { dataset: { label: string }; parsed: { y: number } }) =>
-            `${ctx.dataset.label}: ${formatRupiah(ctx.parsed.y)}`,
+          label: (ctx: TooltipItem<'bar'>) =>
+            `${ctx.dataset.label ?? ''}: ${formatRupiah(ctx.parsed.y ?? 0)}`,
         },
       },
     },

@@ -145,7 +145,7 @@ export default function PembelianPage() {
         </div>
       </div>
 
-      <DataTable columns={columns as Parameters<typeof DataTable>[0]['columns']} data={data as Record<string, unknown>[]} loading={loading} onAdd={() => { setForm({ supplier: suppliers[0]?.nama ?? '', tanggal_pembelian: today() }); setItems([]); setModalOpen(true); }} addLabel="+ Nota Pembelian" />
+      <DataTable columns={columns} data={data} loading={loading} onAdd={() => { setForm({ supplier: suppliers[0]?.nama ?? '', tanggal_pembelian: today() }); setItems([]); setModalOpen(true); }} addLabel="+ Nota Pembelian" />
 
       {/* Create PO Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Tambah Nota Pembelian" size="xl"

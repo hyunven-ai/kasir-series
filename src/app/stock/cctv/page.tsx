@@ -122,7 +122,7 @@ export default function CctvPage() {
         </div>
       </div>
 
-      <DataTable columns={columns as Parameters<typeof DataTable>[0]['columns']} data={data as Record<string, unknown>[]} loading={loading} onAdd={() => { setHdrForm({ supplier: suppliers[0]?.nama ?? '', merk: '', nama: '' }); setHdrModal(true); }} addLabel="+ Tambah Model CCTV" />
+      <DataTable columns={columns} data={data} loading={loading} onAdd={() => { setHdrForm({ supplier: suppliers[0]?.nama ?? '', merk: '', nama: '' }); setHdrModal(true); }} addLabel="+ Tambah Model CCTV" />
 
       <Modal isOpen={hdrModal} onClose={() => setHdrModal(false)} title="Tambah Model CCTV"
         footer={<>

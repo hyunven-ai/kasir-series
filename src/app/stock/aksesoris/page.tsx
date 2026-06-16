@@ -87,7 +87,7 @@ export default function AksesorisPage() {
           <p className="page-subtitle">Kelola stok aksesoris dengan barcode dan kuantitas</p>
         </div>
       </div>
-      <DataTable columns={columns as Parameters<typeof DataTable>[0]['columns']} data={data as Record<string, unknown>[]} loading={loading} onAdd={openAdd} addLabel="+ Tambah Aksesoris" />
+      <DataTable columns={columns} data={data} loading={loading} onAdd={openAdd} addLabel="+ Tambah Aksesoris" />
 
       <Modal isOpen={modalOpen} onClose={closeModal} title={editing ? 'Edit Aksesoris' : 'Tambah Aksesoris'} size="lg"
         footer={<>

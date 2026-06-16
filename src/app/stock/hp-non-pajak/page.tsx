@@ -122,7 +122,7 @@ export default function HpNonPajakPage() {
           <p className="page-subtitle">Kelola stok HP non-pajak berdasarkan nomor IMEI</p>
         </div>
       </div>
-      <DataTable columns={columns as Parameters<typeof DataTable>[0]['columns']} data={data as Record<string, unknown>[]} loading={loading} onAdd={() => { setHdrForm({ supplier: suppliers[0]?.nama ?? '', merk: '', nama: '' }); setHdrModal(true); }} addLabel="+ Tambah Model HP Non Pajak" />
+      <DataTable columns={columns} data={data} loading={loading} onAdd={() => { setHdrForm({ supplier: suppliers[0]?.nama ?? '', merk: '', nama: '' }); setHdrModal(true); }} addLabel="+ Tambah Model HP Non Pajak" />
 
       <Modal isOpen={hdrModal} onClose={() => setHdrModal(false)} title="Tambah Model HP Non Pajak"
         footer={<>

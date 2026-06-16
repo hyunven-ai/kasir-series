@@ -20,7 +20,7 @@ interface DataTableProps<T> {
   extraActions?: React.ReactNode;
 }
 
-export default function DataTable<T extends Record<string, unknown>>({
+export default function DataTable<T extends object>({
   columns,
   data,
   keyField = 'id',
@@ -110,11 +110,11 @@ export default function DataTable<T extends Record<string, unknown>>({
               </tr>
             ) : (
               paginated.map((row, idx) => (
-                <tr key={String(row[keyField] ?? idx)}>
+                <tr key={String((row as Record<string, unknown>)[keyField] ?? idx)}>
                   <td className="text-muted text-sm">{(page - 1) * pageSize + idx + 1}</td>
                   {columns.map(col => (
                     <td key={col.key}>
-                      {col.render ? col.render(row) : String(row[col.key] ?? '')}
+                      {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '')}
                     </td>
                   ))}
                 </tr>

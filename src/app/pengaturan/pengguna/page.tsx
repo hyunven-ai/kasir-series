@@ -100,8 +100,8 @@ export default function PenggunaPage() {
       </div>
 
       <DataTable
-        columns={columns as Parameters<typeof DataTable>[0]['columns']}
-        data={users as unknown as Record<string, unknown>[]}
+        columns={columns}
+        data={users}
         onAdd={openAdd}
         addLabel="+ Tambah User"
       />

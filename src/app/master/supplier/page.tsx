@@ -77,8 +77,8 @@ export default function SupplierPage() {
         </div>
       </div>
       <DataTable
-        columns={columns as Parameters<typeof DataTable>[0]['columns']}
-        data={data as Record<string, unknown>[]}
+        columns={columns}
+        data={data}
         loading={loading} onAdd={openAdd} addLabel="+ Tambah Supplier"
       />
       <Modal isOpen={modalOpen} onClose={closeModal} title={editing ? 'Edit Supplier' : 'Tambah Supplier'}

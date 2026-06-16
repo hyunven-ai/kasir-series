@@ -70,8 +70,8 @@ export default function LogAktivitasPage() {
       </div>
 
       <DataTable
-        columns={columns as Parameters<typeof DataTable>[0]['columns']}
-        data={logs as unknown as Record<string, unknown>[]}
+        columns={columns}
+        data={logs}
       />
     </div>
   );
