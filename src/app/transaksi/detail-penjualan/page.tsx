@@ -1,0 +1,162 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import DataTable from '@/components/ui/DataTable';
+import Modal from '@/components/ui/Modal';
+import { getPenjualan } from '@/lib/db';
+import { formatRupiah, formatDateTime, today, daysAgo } from '@/lib/utils';
+import type { TrsPenjualanHdr, TrsPenjualanDtl } from '@/lib/types';
+
+export default function DetailPenjualanPage() {
+  const [data, setData] = useState<TrsPenjualanHdr[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [from, setFrom] = useState(daysAgo(30));
+  const [to, setTo] = useState(today());
+  const [tempFrom, setTempFrom] = useState(daysAgo(30));
+  const [tempTo, setTempTo] = useState(today());
+  const [dtlModal, setDtlModal] = useState(false);
+  const [selected, setSelected] = useState<TrsPenjualanHdr | null>(null);
+
+  const load = async (f: string, t: string) => {
+    setLoading(true);
+    try { setData(await getPenjualan(f, t)); }
+    catch { /* no-op */ }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(from, to); }, []);
+
+  const handleFilter = () => { setFrom(tempFrom); setTo(tempTo); load(tempFrom, tempTo); };
+  const handleReset = () => {
+    const f = daysAgo(30), t = today();
+    setTempFrom(f); setTempTo(t); setFrom(f); setTo(t); load(f, t);
+  };
+
+  const handlePrint = (row: TrsPenjualanHdr) => {
+    setSelected(row);
+    setTimeout(() => window.print(), 200);
+  };
+
+  const totalPenjualan = data.reduce((sum, d) => sum + (d.total_harga ?? 0), 0);
+  const totalProfit = data.reduce((sum, d) => {
+    const dtls = (d as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? [];
+    return sum + dtls.reduce((s, item) => s + (item.harga_jual - item.harga_modal) * item.qty, 0);
+  }, 0);
+
+  const columns = [
+    { key: 'nomor_invoice', label: 'No. Invoice', render: (row: TrsPenjualanHdr) => <code style={{ fontSize: 11 }}>{row.nomor_invoice}</code> },
+    { key: 'customer', label: 'Pelanggan', render: (row: TrsPenjualanHdr) => <strong>{row.customer}</strong> },
+    { key: 'tanggal_penjualan', label: 'Tanggal', render: (row: TrsPenjualanHdr) => formatDateTime(row.tanggal_penjualan) },
+    {
+      key: 'metode_pembayaran', label: 'Metode',
+      render: (row: TrsPenjualanHdr) => (
+        <span className="badge badge-info" style={{ fontSize: 11 }}>
+          {row.metode_pembayaran ?? 'Tunai'}
+        </span>
+      ),
+    },
+    {
+      key: 'total', label: 'Total',
+      render: (row: TrsPenjualanHdr) => <span style={{ fontWeight: 700, color: '#1565c0' }}>{formatRupiah(row.total_harga ?? 0)}</span>,
+    },
+    { key: 'create_by', label: 'Kasir', render: (row: TrsPenjualanHdr) => row.create_by ?? '-' },
+    {
+      key: 'actions', label: 'Aksi', width: '140px',
+      render: (row: TrsPenjualanHdr) => (
+        <div className="table-actions">
+          <button className="btn btn-outline btn-sm" onClick={() => { setSelected(row); setDtlModal(true); }} id={`btn-dtl-${row.id}`}>Detail</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => handlePrint(row)} id={`btn-print-${row.id}`}>🖨️</button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <div className="page-header">
+        <h1 className="page-title">Detail Penjualan</h1>
+      </div>
+
+      {/* Filter */}
+      <div className="filter-bar">
+        <div className="form-group">
+          <label className="form-label">Dari</label>
+          <input type="date" className="form-control" value={tempFrom} onChange={e => setTempFrom(e.target.value)} id="dtl-from" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Sampai</label>
+          <input type="date" className="form-control" value={tempTo} onChange={e => setTempTo(e.target.value)} id="dtl-to" />
+        </div>
+        <div className="filter-bar-right" style={{ alignSelf: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={handleReset} id="btn-reset-dtl">Reset</button>
+          <button className="btn btn-primary" onClick={handleFilter} id="btn-filter-dtl">Filter</button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="metric-cards-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 20 }}>
+        <div className="metric-card metric-card-blue">
+          <div className="metric-card-label">Jumlah Transaksi</div>
+          <div className="metric-card-value" style={{ fontSize: 28 }}>{data.length}</div>
+        </div>
+        <div className="metric-card metric-card-green">
+          <div className="metric-card-label">Total Penjualan</div>
+          <div className="metric-card-value">{formatRupiah(totalPenjualan)}</div>
+        </div>
+        <div className="metric-card metric-card-teal">
+          <div className="metric-card-label">Total Profit</div>
+          <div className="metric-card-value">{formatRupiah(totalProfit)}</div>
+        </div>
+      </div>
+
+      <DataTable
+        columns={columns as Parameters<typeof DataTable>[0]['columns']}
+        data={data as Record<string, unknown>[]}
+        loading={loading}
+      />
+
+      {/* Detail Modal */}
+      <Modal isOpen={dtlModal} onClose={() => setDtlModal(false)} title={`Detail Invoice — ${selected?.nomor_invoice}`} size="lg"
+        footer={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary" onClick={() => handlePrint(selected!)} id="btn-reprint">🖨️ Cetak Ulang Struk</button>
+            <button className="btn btn-outline" onClick={() => setDtlModal(false)}>Tutup</button>
+          </div>
+        }
+      >
+        {selected && (
+          <>
+            <div className="form-grid" style={{ marginBottom: 16 }}>
+              <div><div style={{ fontSize: 12, color: '#888' }}>Pelanggan</div><strong>{selected.customer}</strong></div>
+              <div><div style={{ fontSize: 12, color: '#888' }}>Tanggal</div><strong>{formatDateTime(selected.tanggal_penjualan)}</strong></div>
+              <div><div style={{ fontSize: 12, color: '#888' }}>Metode Pembayaran</div><strong>{selected.metode_pembayaran ?? 'Tunai'}</strong></div>
+              <div><div style={{ fontSize: 12, color: '#888' }}>Kasir</div><strong>{selected.create_by}</strong></div>
+            </div>
+            <table className="data-table">
+              <thead>
+                <tr><th>#</th><th>Barang</th><th>Kategori</th><th>Kode</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr>
+              </thead>
+              <tbody>
+                {((selected as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? []).map((d, i) => (
+                  <tr key={d.id}>
+                    <td>{i + 1}</td>
+                    <td><strong>{d.nama_barang}</strong></td>
+                    <td><span className="badge badge-info" style={{ fontSize: 10 }}>{d.kategori}</span></td>
+                    <td><code style={{ fontSize: 10 }}>{d.code}</code></td>
+                    <td>{d.qty}</td>
+                    <td>{formatRupiah(d.harga_jual)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatRupiah(d.harga_jual * d.qty)}</td>
+                  </tr>
+                ))}
+                <tr style={{ background: '#f0f4ff' }}>
+                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700 }}>TOTAL</td>
+                  <td style={{ fontWeight: 700, color: '#1565c0', fontSize: 15 }}>{formatRupiah(selected.total_harga ?? 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}
