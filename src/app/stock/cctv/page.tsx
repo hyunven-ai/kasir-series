@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import {
-  getCctvHdr, createCctvHdr,
-  getCctvDtl, createCctvDtl,
+  getCctvHdr, createCctvHdr, updateCctvHdr,
+  getCctvDtl, createCctvDtl, deleteCctvDtl,
   getSuppliers, getMerks,
 } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +20,7 @@ export default function CctvPage() {
   const [merks, setMerks] = useState<MsMerk[]>([]);
   const [loading, setLoading] = useState(true);
   const [hdrModal, setHdrModal] = useState(false);
+  const [editingHdr, setEditingHdr] = useState<MsCctvHdr | null>(null);
   const [hdrForm, setHdrForm] = useState({ supplier: '', merk: '', nama: '' });
   const [hdrSaving, setHdrSaving] = useState(false);
   const [dtlModal, setDtlModal] = useState(false);
@@ -53,11 +54,24 @@ export default function CctvPage() {
     finally { setDtlLoading(false); }
   };
 
+  const openAddHdr = () => {
+    setEditingHdr(null);
+    setHdrForm({ supplier: suppliers[0]?.nama ?? '', merk: '', nama: '' });
+    setHdrModal(true);
+  };
+
+  const openEditHdr = (row: MsCctvHdr) => {
+    setEditingHdr(row);
+    setHdrForm({ supplier: row.supplier, merk: row.merk, nama: row.nama });
+    setHdrModal(true);
+  };
+
   const handleSaveHdr = async (e: React.FormEvent) => {
     e.preventDefault();
     setHdrSaving(true);
     try {
-      await createCctvHdr({ ...hdrForm, create_by: user?.username });
+      if (editingHdr) await updateCctvHdr(editingHdr.id, { ...hdrForm, update_by: user?.username });
+      else await createCctvHdr({ ...hdrForm, create_by: user?.username });
       await load(); setHdrModal(false);
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Gagal menyimpan');
@@ -81,6 +95,15 @@ export default function CctvPage() {
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'SN sudah terdaftar');
     } finally { setDtlSaving(false); }
+  };
+
+  const handleDeleteDtl = async (id: number) => {
+    if (!confirm('Hapus SN ini?')) return;
+    try {
+      await deleteCctvDtl(id);
+      setDtlData(d => d.filter(r => r.id !== id));
+      await load();
+    } catch { alert('Gagal menghapus'); }
   };
 
   const handleDeleteHdr = async (id: number) => {
@@ -107,6 +130,7 @@ export default function CctvPage() {
       render: (row: MsCctvHdr) => (
         <div className="table-actions">
           <button className="btn btn-primary btn-sm" onClick={() => openDtl(row)} id={`btn-sn-${row.id}`}>📷 SN</button>
+          <button className="btn btn-outline btn-sm" onClick={() => openEditHdr(row)} id={`btn-edit-cctv-${row.id}`}>✏️</button>
           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteHdr(row.id)} id={`btn-del-cctv-${row.id}`}>🗑️</button>
         </div>
       ),
@@ -122,9 +146,9 @@ export default function CctvPage() {
         </div>
       </div>
 
-      <DataTable columns={columns} data={data} loading={loading} onAdd={() => { setHdrForm({ supplier: suppliers[0]?.nama ?? '', merk: '', nama: '' }); setHdrModal(true); }} addLabel="+ Tambah Model CCTV" />
+      <DataTable columns={columns} data={data} loading={loading} onAdd={openAddHdr} addLabel="+ Tambah Model CCTV" />
 
-      <Modal isOpen={hdrModal} onClose={() => setHdrModal(false)} title="Tambah Model CCTV"
+      <Modal isOpen={hdrModal} onClose={() => setHdrModal(false)} title={editingHdr ? 'Edit Model CCTV' : 'Tambah Model CCTV'}
         footer={<>
           <button className="btn btn-secondary" onClick={() => setHdrModal(false)}>Batal</button>
           <button className="btn btn-primary" onClick={handleSaveHdr} disabled={hdrSaving} id="btn-save-cctv-hdr">Simpan</button>
@@ -170,9 +194,9 @@ export default function CctvPage() {
           </div>
         </div>
         <table className="data-table">
-          <thead><tr><th>#</th><th>Serial Number</th><th>Modal</th><th>Jual</th><th>Status</th></tr></thead>
+          <thead><tr><th>#</th><th>Serial Number</th><th>Modal</th><th>Jual</th><th>Status</th><th>Aksi</th></tr></thead>
           <tbody>
-            {dtlLoading ? <tr><td colSpan={5} style={{ textAlign: 'center', padding: 20 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
+            {dtlLoading ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: 20 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
               : dtlData.map((d, i) => (
               <tr key={d.id}>
                 <td className="text-muted text-sm">{i + 1}</td>
@@ -180,6 +204,11 @@ export default function CctvPage() {
                 <td>{formatRupiah(d.harga_modal)}</td>
                 <td>{formatRupiah(d.harga_jual)}</td>
                 <td><span className={`badge ${d.status === 'terjual' ? 'badge-error' : 'badge-success'}`}>{d.status === 'terjual' ? 'Terjual' : 'Tersedia'}</span></td>
+                <td>
+                  {(!d.status || d.status === 'tersedia') && (
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDtl(d.id)} id={`btn-del-sn-${d.id}`}>🗑️</button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -314,6 +314,22 @@ export async function createHpNonPajakDtl(payload: Omit<MsHpDtlNonPajak, 'id' | 
   return data as MsHpDtlNonPajak;
 }
 
+export async function deleteHpNonPajakDtl(id: number) {
+  const { error } = await supabase.from('ms_hp_dtl_non_pajak').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function updateHpNonPajakHdr(id: number, payload: Partial<MsHpHdrNonPajak>) {
+  const { data, error } = await supabase
+    .from('ms_hp_hdr_non_pajak')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MsHpHdrNonPajak;
+}
+
 // ============================================
 // STOCK - CCTV
 // ============================================
@@ -355,6 +371,22 @@ export async function createCctvDtl(payload: Omit<MsCctvDtl, 'id' | 'create_time
     .single();
   if (error) throw error;
   return data as MsCctvDtl;
+}
+
+export async function deleteCctvDtl(id: number) {
+  const { error } = await supabase.from('ms_cctv_dtl').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function updateCctvHdr(id: number, payload: Partial<MsCctvHdr>) {
+  const { data, error } = await supabase
+    .from('ms_cctv_hdr')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MsCctvHdr;
 }
 
 // ============================================
