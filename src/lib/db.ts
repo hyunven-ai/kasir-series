@@ -1,4 +1,5 @@
 import { formatRupiah } from './utils';
+import { getCurrentUser } from './auth';
 
 // ============================================
 // SUPABASE DATA HELPERS
@@ -396,6 +397,8 @@ export async function createPenjualan(
     await kurangiStok(item.idbarang, item.kategori as string, item.qty, item.code);
   }
 
+  await writeLog('INSERT', 'trs_penjualan_hdr', `Penjualan ${header.nomor_invoice} — Total: ${formatRupiah(header.total_harga || 0)}`);
+
   return hdr as TrsPenjualanHdr;
 }
 
@@ -444,6 +447,8 @@ export async function deletePenjualan(id: number) {
     .delete()
     .eq('id', id);
   if (hdrErr) throw hdrErr;
+
+  await writeLog('DELETE', 'trs_penjualan_hdr', `Hapus penjualan ID: ${id}`);
 }
 
 export async function updatePenjualanHeader(id: number, payload: Partial<TrsPenjualanHdr>) {
@@ -454,6 +459,9 @@ export async function updatePenjualanHeader(id: number, payload: Partial<TrsPenj
     .select()
     .single();
   if (error) throw error;
+
+  await writeLog('UPDATE', 'trs_penjualan_hdr', `Ubah info penjualan ID: ${id} (${payload.customer || 'Umum'})`);
+
   return data as TrsPenjualanHdr;
 }
 
@@ -506,6 +514,8 @@ export async function createPembelian(
     .from('trs_pembelian_dtl')
     .insert(dtls);
   if (dtlErr) throw dtlErr;
+
+  await writeLog('INSERT', 'trs_pembelian_hdr', `Pembelian dari ${header.supplier}`);
 
   return hdr as TrsPembelianHdr;
 }
@@ -736,4 +746,41 @@ export async function searchBarcode(barcode: string) {
   }
 
   return null;
+}
+
+// ============================================
+// LOG HISTORI / AUDIT TRAIL
+// ============================================
+
+export async function writeLog(aksi: string, tabel: string, detail: string) {
+  try {
+    const user = getCurrentUser();
+    const username = user?.username ?? 'system';
+    await supabase.from('log_aktivitas').insert({
+      username,
+      aksi,
+      tabel,
+      detail,
+      waktu: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('Gagal menulis log:', e);
+  }
+}
+
+export async function getLogs() {
+  const { data, error } = await supabase
+    .from('log_aktivitas')
+    .select('*')
+    .order('waktu', { ascending: false });
+  if (error) throw error;
+  
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    user: row.username,
+    aksi: row.aksi,
+    tabel: row.tabel,
+    detail: row.detail,
+    waktu: row.waktu
+  }));
 }

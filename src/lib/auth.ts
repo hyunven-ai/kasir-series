@@ -32,11 +32,30 @@ export const DEMO_ACCOUNTS_PUBLIC = DEMO_ACCOUNTS.map(a => ({
   password: a.password,
   role: a.role,
   nama_lengkap: a.nama_lengkap,
+  is_active: true,
 }));
 
+export function getStoredUsers(): any[] {
+  if (typeof window === 'undefined') return DEMO_ACCOUNTS;
+  const stored = localStorage.getItem('series_ponsel_users');
+  if (!stored) {
+    const initial = DEMO_ACCOUNTS.map(a => ({ ...a, is_active: true }));
+    localStorage.setItem('series_ponsel_users', JSON.stringify(initial));
+    return initial;
+  }
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return DEMO_ACCOUNTS.map(a => ({ ...a, is_active: true }));
+  }
+}
+
 export function login(username: string, password: string): AuthUser | null {
-  const account = DEMO_ACCOUNTS.find(
-    a => a.username === username && a.password === password
+  const users = getStoredUsers();
+  const account = users.find(
+    a => a.username.toLowerCase() === username.toLowerCase() && 
+         a.password === password && 
+         a.is_active !== false
   );
   if (!account) return null;
 

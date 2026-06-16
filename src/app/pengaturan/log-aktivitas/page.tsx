@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import { formatDateTime } from '@/lib/utils';
+import { getLogs } from '@/lib/db';
+import type { LogAktivitas } from '@/lib/types';
 
 const DEMO_LOGS = [
   { id: 1, user: 'admin', aksi: 'UPDATE', tabel: 'ms_hp_dtl', detail: 'Ubah harga jual IMEI 356789012345678 → Rp 4.500.000', waktu: new Date().toISOString() },
@@ -20,36 +22,51 @@ const AKSI_COLORS: Record<string, string> = {
 };
 
 export default function LogAktivitasPage() {
-  const [logs] = useState(DEMO_LOGS);
+  const [logs, setLogs] = useState<LogAktivitas[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchLogs() {
+      try {
+        const data = await getLogs();
+        setLogs(data);
+      } catch (e) {
+        console.error('Gagal mengambil data log:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLogs();
+  }, []);
 
   const columns = [
     {
       key: 'waktu', label: 'Waktu',
-      render: (row: typeof DEMO_LOGS[0]) => (
+      render: (row: LogAktivitas) => (
         <span style={{ fontSize: 12, color: '#888' }}>{formatDateTime(row.waktu)}</span>
       ),
     },
     {
       key: 'user', label: 'User',
-      render: (row: typeof DEMO_LOGS[0]) => (
+      render: (row: LogAktivitas) => (
         <code style={{ fontSize: 12, background: '#f0f4ff', padding: '2px 6px', borderRadius: 4 }}>@{row.user}</code>
       ),
     },
     {
       key: 'aksi', label: 'Aksi',
-      render: (row: typeof DEMO_LOGS[0]) => (
+      render: (row: LogAktivitas) => (
         <span className={`badge ${AKSI_COLORS[row.aksi] ?? 'badge-gray'}`}>{row.aksi}</span>
       ),
     },
     {
       key: 'tabel', label: 'Tabel',
-      render: (row: typeof DEMO_LOGS[0]) => (
+      render: (row: LogAktivitas) => (
         <code style={{ fontSize: 11, color: '#666' }}>{row.tabel}</code>
       ),
     },
     {
       key: 'detail', label: 'Detail',
-      render: (row: typeof DEMO_LOGS[0]) => (
+      render: (row: LogAktivitas) => (
         <span style={{ fontSize: 12 }}>{row.detail}</span>
       ),
     },
@@ -72,6 +89,7 @@ export default function LogAktivitasPage() {
       <DataTable
         columns={columns}
         data={logs}
+        loading={loading}
       />
     </div>
   );

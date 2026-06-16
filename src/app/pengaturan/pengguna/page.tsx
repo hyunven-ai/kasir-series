@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
-import { getCurrentUser, getRoleLabel, getRoleBadgeClass, DEMO_ACCOUNTS_PUBLIC } from '@/lib/auth';
+import { getCurrentUser, getRoleLabel, getRoleBadgeClass, getStoredUsers } from '@/lib/auth';
 import type { Role } from '@/lib/types';
 
 interface UserItem {
@@ -25,15 +25,11 @@ export default function PenggunaPage() {
     );
   }
 
-  const [users, setUsers] = useState<UserItem[]>(
-    DEMO_ACCOUNTS_PUBLIC.map((a, i) => ({
-      id: i + 1,
-      username: a.username,
-      nama_lengkap: a.nama_lengkap,
-      role: a.role as Role,
-      is_active: true,
-    }))
-  );
+  const [users, setUsers] = useState<UserItem[]>([]);
+
+  useEffect(() => {
+    setUsers(getStoredUsers());
+  }, []);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [form, setForm] = useState({ username: '', nama_lengkap: '', role: 'kasir' as Role, password: '' });
@@ -42,16 +38,21 @@ export default function PenggunaPage() {
   const openEdit = (u: UserItem) => { setEditing(u); setForm({ username: u.username, nama_lengkap: u.nama_lengkap, role: u.role, password: '' }); setModalOpen(true); };
 
   const handleSave = () => {
+    let updated: UserItem[];
     if (editing) {
-      setUsers(prev => prev.map(u => u.id === editing.id ? { ...u, ...form } : u));
+      updated = users.map(u => u.id === editing.id ? { ...u, ...form } : u);
     } else {
-      setUsers(prev => [...prev, { id: Date.now(), ...form, is_active: true }]);
+      updated = [...users, { id: Date.now(), ...form, is_active: true } as UserItem];
     }
+    setUsers(updated);
+    localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
     setModalOpen(false);
   };
 
   const toggleActive = (id: number) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: !u.is_active } : u));
+    const updated = users.map(u => u.id === id ? { ...u, is_active: !u.is_active } : u);
+    setUsers(updated);
+    localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
   };
 
   const columns = [

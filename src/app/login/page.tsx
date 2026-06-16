@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { login, DEMO_ACCOUNTS_PUBLIC } from '@/lib/auth';
+import { login } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,12 +31,6 @@ export default function LoginPage() {
     } else {
       router.push('/dashboard');
     }
-  };
-
-  const fillDemo = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    setError('');
   };
 
   return (
@@ -102,27 +96,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Demo accounts */}
-        <div className="login-demo-accounts">
-          <div className="login-demo-title">Demo Accounts</div>
-          {DEMO_ACCOUNTS_PUBLIC.map(acc => (
-            <div
-              key={acc.username}
-              className="login-demo-item"
-              onClick={() => fillDemo(acc.username, acc.password)}
-              title={`Klik untuk mengisi ${acc.username}`}
-            >
-              <div>
-                <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: 600 }}>
-                  {acc.nama_lengkap}
-                </div>
-                <div className="login-demo-role">{acc.role.replace('_', ' ')}</div>
-              </div>
-              <div className="login-demo-cred">{acc.username} / {acc.password}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
