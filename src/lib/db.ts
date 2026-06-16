@@ -681,7 +681,7 @@ export async function searchBarcode(barcode: string) {
     .from('ms_hp_dtl')
     .select('*, ms_hp_hdr(nama, merk, supplier)')
     .eq('imei', barcode)
-    .is('status', null)
+    .or('status.is.null,status.eq.tersedia')
     .single();
 
   if (hp) {
@@ -704,7 +704,7 @@ export async function searchBarcode(barcode: string) {
     .from('ms_hp_dtl_non_pajak')
     .select('*, ms_hp_hdr_non_pajak(nama, merk, supplier)')
     .eq('imei', barcode)
-    .is('status', null)
+    .or('status.is.null,status.eq.tersedia')
     .single();
 
   if (hpnp) {
@@ -727,7 +727,7 @@ export async function searchBarcode(barcode: string) {
     .from('ms_cctv_dtl')
     .select('*, ms_cctv_hdr(nama, merk, supplier)')
     .eq('sn_cctv', barcode)
-    .is('status', null)
+    .or('status.is.null,status.eq.tersedia')
     .single();
 
   if (cctv) {

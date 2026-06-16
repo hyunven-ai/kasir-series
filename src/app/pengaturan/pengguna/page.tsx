@@ -55,13 +55,25 @@ export default function PenggunaPage() {
     localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
   };
 
+  const handleDeleteUser = (id: number, username: string) => {
+    if (username.toLowerCase() === currentUser?.username.toLowerCase()) {
+      alert('Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif!');
+      return;
+    }
+    if (!confirm(`Apakah Anda yakin ingin menghapus user @${username}?`)) return;
+    
+    const updated = users.filter(u => u.id !== id);
+    setUsers(updated);
+    localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
+  };
+
   const columns = [
     { key: 'nama_lengkap', label: 'Nama', render: (row: UserItem) => <strong>{row.nama_lengkap}</strong> },
     { key: 'username', label: 'Username', render: (row: UserItem) => <code style={{ fontSize: 12 }}>@{row.username}</code> },
     { key: 'role', label: 'Role', render: (row: UserItem) => <span className={`badge ${getRoleBadgeClass(row.role)}`}>{getRoleLabel(row.role)}</span> },
     { key: 'is_active', label: 'Status', render: (row: UserItem) => <span className={`badge ${row.is_active ? 'badge-success' : 'badge-gray'}`}>{row.is_active ? 'Aktif' : 'Nonaktif'}</span> },
     {
-      key: 'actions', label: 'Aksi', width: '160px',
+      key: 'actions', label: 'Aksi', width: '220px',
       render: (row: UserItem) => (
         <div className="table-actions">
           <button className="btn btn-outline btn-sm" onClick={() => openEdit(row)} id={`btn-edit-user-${row.id}`}>✏️ Edit</button>
@@ -70,7 +82,14 @@ export default function PenggunaPage() {
             onClick={() => toggleActive(row.id)}
             id={`btn-toggle-user-${row.id}`}
           >
-            {row.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+            {row.is_active ? 'Nonaktif' : 'Aktif'}
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={() => handleDeleteUser(row.id, row.username)}
+            id={`btn-delete-user-${row.id}`}
+          >
+            🗑️ Hapus
           </button>
         </div>
       ),
