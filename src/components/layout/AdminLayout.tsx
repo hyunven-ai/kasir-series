@@ -12,6 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -22,6 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } else {
       setUser(u);
     }
+    setIsLoading(false);
   }, [router]);
 
   // Automatically close mobile sidebar on navigation
@@ -34,12 +36,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/login');
   };
 
-  if (!user) {
+  if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <div className="spinner" />
       </div>
     );
+  }
+
+  if (!user) {
+    return null; // sedang redirect ke /login
   }
 
   return (
