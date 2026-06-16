@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, generateInvoiceNo, today } from '@/lib/utils';
 import type { CartItem, MetodePembayaran } from '@/lib/types';
 import PrintReceipt from '@/components/ui/PrintReceipt';
+import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 
 const METODE_OPTIONS: MetodePembayaran[] = ['Tunai', 'Debit', 'Transfer', 'QRIS'];
 
@@ -32,6 +33,36 @@ export default function PenjualanPage() {
     total: number;
     bayar?: number;
   } | null>(null);
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const handleScanSuccess = async (scannedValue: string) => {
+    if (!scannedValue.trim()) return;
+    setSearching(true);
+    setSearchError('');
+    try {
+      const result = await searchBarcode(scannedValue.trim());
+      if (!result) {
+        setSearchError(`Barang dengan kode "${scannedValue}" tidak ditemukan atau stok habis`);
+        return;
+      }
+      // Check if already in cart
+      const existing = cart.findIndex(c => c.code === result.code && c.kategori === result.kategori);
+      if (existing >= 0) {
+        if (cart[existing].qty >= (result.max_qty ?? 1)) {
+          setSearchError(`Stok maksimal ${result.max_qty} unit`);
+          return;
+        }
+        setCart(prev => prev.map((c, i) => i === existing ? { ...c, qty: c.qty + 1 } : c));
+      } else {
+        setCart(prev => [...prev, result]);
+      }
+    } catch (e: unknown) {
+      setSearchError(e instanceof Error ? e.message : 'Gagal mencari barang');
+    } finally {
+      setSearching(false);
+    }
+  };
 
   // Auto focus barcode input
   useEffect(() => {
@@ -153,7 +184,7 @@ export default function PenjualanPage() {
         <div className="pos-products">
           {/* Barcode Input */}
           <div style={{ padding: 16, borderBottom: '1px solid #eee', background: '#fafafa' }}>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               <div className="barcode-input-wrap" style={{ flex: 1 }}>
                 <input
                   ref={barcodeRef}
@@ -167,11 +198,22 @@ export default function PenjualanPage() {
                   autoFocus
                 />
               </div>
+              {/* Camera scan button */}
+              <button
+                className="btn btn-outline btn-lg"
+                onClick={() => setScannerOpen(true)}
+                title="Scan menggunakan kamera"
+                id="btn-camera-scan"
+                style={{ flexShrink: 0, fontSize: 18, padding: '0 14px' }}
+              >
+                📷
+              </button>
               <button
                 className="btn btn-primary btn-lg"
                 onClick={handleBarcodeSearch}
                 disabled={searching || !barcode.trim()}
                 id="btn-scan"
+                style={{ flexShrink: 0 }}
               >
                 {searching ? <div className="spinner" style={{ width: 16, height: 16 }} /> : '🔍 Cari'}
               </button>
@@ -465,6 +507,13 @@ export default function PenjualanPage() {
           bayar={printData.bayar}
         />
       )}
+
+      {/* Camera Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+      />
     </div>
   );
 }

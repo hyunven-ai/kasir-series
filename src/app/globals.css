@@ -794,6 +794,8 @@ select.form-control {
   border: 1px solid var(--border-light);
   overflow: hidden;
   box-shadow: var(--shadow-card);
+  max-width: 100%;
+  width: 100%;
 }
 
 .data-table {
@@ -1713,6 +1715,7 @@ input[type=number]::-webkit-inner-spin-button {
 
   .app-content {
     padding: 16px 12px;
+    overflow-x: hidden;
   }
 
   .page-header {
@@ -1835,7 +1838,7 @@ input[type=number]::-webkit-inner-spin-button {
     background: #ffffff;
     border-top: 1px solid var(--border-light);
     box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
-    z-index: 98;
+    z-index: 99;
     align-items: center;
     justify-content: space-around;
     padding-bottom: env(safe-area-inset-bottom);
