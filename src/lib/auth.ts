@@ -1,4 +1,5 @@
 import { Role, AuthUser } from './types';
+import { supabase } from './supabase';
 
 const STORAGE_KEY = 'series_ponsel_auth';
 
@@ -35,7 +36,7 @@ export const DEMO_ACCOUNTS_PUBLIC = DEMO_ACCOUNTS.map(a => ({
   is_active: true,
 }));
 
-export function getStoredUsers(): any[] {
+function getStoredUsersFallback(): any[] {
   if (typeof window === 'undefined') return DEMO_ACCOUNTS;
   const stored = localStorage.getItem('series_ponsel_users');
   if (!stored) {
@@ -50,8 +51,8 @@ export function getStoredUsers(): any[] {
   }
 }
 
-export function login(username: string, password: string): AuthUser | null {
-  const users = getStoredUsers();
+function loginFallback(username: string, password: string): AuthUser | null {
+  const users = getStoredUsersFallback();
   const account = users.find(
     a => a.username.toLowerCase() === username.toLowerCase() && 
          a.password === password && 
@@ -71,6 +72,39 @@ export function login(username: string, password: string): AuthUser | null {
   }
 
   return user;
+}
+
+export async function login(username: string, password: string): Promise<AuthUser | null> {
+  try {
+    const { data, error } = await supabase
+      .from('ms_user')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (error || !data) {
+      return loginFallback(username, password);
+    }
+
+    if (data.password !== password || !data.is_active) {
+      return null;
+    }
+
+    const user: AuthUser = {
+      id: Number(data.id),
+      username: data.username,
+      nama_lengkap: data.nama_lengkap,
+      role: data.role as Role,
+    };
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    }
+
+    return user;
+  } catch (e) {
+    return loginFallback(username, password);
+  }
 }
 
 export function logout() {

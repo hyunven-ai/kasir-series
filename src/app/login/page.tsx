@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     await new Promise(r => setTimeout(r, 400)); // simulate
 
-    const user = login(username, password);
+    const user = await login(username, password);
     if (!user) {
       setError('Username atau password salah. Coba lagi.');
       setLoading(false);

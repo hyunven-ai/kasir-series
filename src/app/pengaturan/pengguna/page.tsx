@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
-import { getCurrentUser, getRoleLabel, getRoleBadgeClass, getStoredUsers } from '@/lib/auth';
+import { getCurrentUser, getRoleLabel, getRoleBadgeClass } from '@/lib/auth';
+import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db';
 import type { Role } from '@/lib/types';
 
 interface UserItem {
@@ -27,9 +28,24 @@ export default function PenggunaPage() {
 
   const [users, setUsers] = useState<UserItem[]>([]);
 
+  const loadUsers = async () => {
+    try {
+      const data = await getUsers();
+      setUsers(data);
+    } catch (e) {
+      const stored = localStorage.getItem('series_ponsel_users');
+      if (stored) {
+        try {
+          setUsers(JSON.parse(stored));
+        } catch { /* no-op */ }
+      }
+    }
+  };
+
   useEffect(() => {
-    setUsers(getStoredUsers());
+    loadUsers();
   }, []);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [form, setForm] = useState({ username: '', nama_lengkap: '', role: 'kasir' as Role, password: '' });
@@ -37,34 +53,70 @@ export default function PenggunaPage() {
   const openAdd = () => { setEditing(null); setForm({ username: '', nama_lengkap: '', role: 'kasir', password: '' }); setModalOpen(true); };
   const openEdit = (u: UserItem) => { setEditing(u); setForm({ username: u.username, nama_lengkap: u.nama_lengkap, role: u.role, password: '' }); setModalOpen(true); };
 
-  const handleSave = () => {
-    let updated: UserItem[];
-    if (editing) {
-      updated = users.map(u => u.id === editing.id ? { ...u, ...form } : u);
-    } else {
-      updated = [...users, { id: Date.now(), ...form, is_active: true } as UserItem];
+  const handleSave = async () => {
+    try {
+      if (editing) {
+        const payload: any = {
+          username: form.username,
+          nama_lengkap: form.nama_lengkap,
+          role: form.role,
+        };
+        if (form.password) {
+          payload.password = form.password;
+        }
+        await updateUser(editing.id, payload);
+      } else {
+        await createUser({
+          username: form.username,
+          nama_lengkap: form.nama_lengkap,
+          role: form.role,
+          password: form.password || '123456',
+          is_active: true,
+        });
+      }
+      await loadUsers();
+      setModalOpen(false);
+    } catch (e) {
+      let updated: UserItem[];
+      if (editing) {
+        updated = users.map(u => u.id === editing.id ? { ...u, ...form } : u);
+      } else {
+        updated = [...users, { id: Date.now(), ...form, is_active: true } as UserItem];
+      }
+      setUsers(updated);
+      localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
+      setModalOpen(false);
     }
-    setUsers(updated);
-    localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
-    setModalOpen(false);
   };
 
-  const toggleActive = (id: number) => {
-    const updated = users.map(u => u.id === id ? { ...u, is_active: !u.is_active } : u);
-    setUsers(updated);
-    localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
+  const toggleActive = async (id: number) => {
+    const userToUpdate = users.find(u => u.id === id);
+    if (!userToUpdate) return;
+    try {
+      await updateUser(id, { is_active: !userToUpdate.is_active });
+      await loadUsers();
+    } catch {
+      const updated = users.map(u => u.id === id ? { ...u, is_active: !u.is_active } : u);
+      setUsers(updated);
+      localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
+    }
   };
 
-  const handleDeleteUser = (id: number, username: string) => {
+  const handleDeleteUser = async (id: number, username: string) => {
     if (username.toLowerCase() === currentUser?.username.toLowerCase()) {
       alert('Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif!');
       return;
     }
     if (!confirm(`Apakah Anda yakin ingin menghapus user @${username}?`)) return;
     
-    const updated = users.filter(u => u.id !== id);
-    setUsers(updated);
-    localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
+    try {
+      await deleteUser(id);
+      await loadUsers();
+    } catch {
+      const updated = users.filter(u => u.id !== id);
+      setUsers(updated);
+      localStorage.setItem('series_ponsel_users', JSON.stringify(updated));
+    }
   };
 
   const columns = [

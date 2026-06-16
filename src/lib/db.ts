@@ -816,3 +816,46 @@ export async function getLogs() {
     waktu: row.waktu
   }));
 }
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+export async function getUsers() {
+  const { data, error } = await supabase
+    .from('ms_user')
+    .select('*')
+    .order('create_time');
+  if (error) throw error;
+  return data as any[];
+}
+
+export async function createUser(payload: any) {
+  const { data, error } = await supabase
+    .from('ms_user')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateUser(id: number, payload: any) {
+  const { data, error } = await supabase
+    .from('ms_user')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteUser(id: number) {
+  const { error } = await supabase
+    .from('ms_user')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
