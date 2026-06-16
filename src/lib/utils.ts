@@ -7,7 +7,14 @@ export function formatRupiah(amount: number): string {
 // Format date to Indonesian
 export function formatDate(dateStr: string): string {
   if (!dateStr) return '-';
-  const date = new Date(dateStr);
+  let cleanStr = dateStr;
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !/-\d{2}:\d{2}$/.test(dateStr)) {
+    cleanStr = dateStr.replace(' ', 'T');
+    if (cleanStr.includes('T')) {
+      cleanStr += 'Z';
+    }
+  }
+  const date = new Date(cleanStr);
   return date.toLocaleDateString('id-ID', {
     day: '2-digit',
     month: 'short',
@@ -17,7 +24,14 @@ export function formatDate(dateStr: string): string {
 
 export function formatDateTime(dateStr: string): string {
   if (!dateStr) return '-';
-  const date = new Date(dateStr);
+  let cleanStr = dateStr;
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !/-\d{2}:\d{2}$/.test(dateStr)) {
+    cleanStr = dateStr.replace(' ', 'T');
+    if (cleanStr.includes('T')) {
+      cleanStr += 'Z';
+    }
+  }
+  const date = new Date(cleanStr);
   return date.toLocaleDateString('id-ID', {
     day: '2-digit',
     month: 'short',
