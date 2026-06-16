@@ -41,18 +41,9 @@ export default function PrintReceipt({
 
   return (
     <div className="print-receipt-container">
-      {/* SP SERIES Custom Premium Logo */}
+      {/* Logo */}
       <div className="receipt-header">
-        <div className="sp-logo-wrapper">
-          <div className="sp-logo-red-box">
-            <div className="sp-logo-inner-border">
-              <span className="sp-logo-letters">SP</span>
-            </div>
-          </div>
-          <div className="sp-logo-black-bar">
-            SERIES
-          </div>
-        </div>
+        <img src="/logo-series.webp" alt="Logo Series" style={{ width: '48px', height: '48px', objectFit: 'contain', marginBottom: '8px' }} />
         
         <h1 className="receipt-shop-name">SERIES PONSEL</h1>
         <p className="receipt-shop-address">Jalan Pasar Beringin no.05</p>

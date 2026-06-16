@@ -42,9 +42,10 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        {/* Logo */}
         <div className="login-logo">
-          <div className="login-logo-icon">SP</div>
+          <div className="login-logo-icon" style={{ background: 'none', boxShadow: 'none' }}>
+            <img src="/logo-series.webp" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
           <div className="login-logo-name">Series Ponsel</div>
           <div className="login-logo-sub">Sistem POS & Inventaris</div>
         </div>

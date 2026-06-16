@@ -96,7 +96,9 @@ export default function Sidebar({ user, collapsed, mobileOpen, onCloseMobile }: 
     <aside className={`app-sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">SP</div>
+        <div className="sidebar-logo-icon" style={{ background: 'none' }}>
+          <img src="/logo-series.webp" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        </div>
         <span className="sidebar-logo-text">Series Ponsel</span>
         {/* Mobile close button */}
         <button className="sidebar-close-mobile" onClick={onCloseMobile} title="Tutup Menu">
