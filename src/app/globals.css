@@ -1252,6 +1252,8 @@ input[type=number]::-webkit-inner-spin-button {
   .filter-bar,
   .metric-cards-grid,
   .data-table,
+  .table-container,
+  .table-toolbar,
   .modal-backdrop,
   .modal,
   #btn-print-receipt,
