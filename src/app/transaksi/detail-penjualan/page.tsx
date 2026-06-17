@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
-import { getPenjualan, deletePenjualan, updatePenjualanHeader } from '@/lib/db';
+import { getPenjualan, deletePenjualan, updatePenjualanHeader, getMerks } from '@/lib/db';
 import { formatRupiah, formatDateTime, today, daysAgo } from '@/lib/utils';
-import type { TrsPenjualanHdr, TrsPenjualanDtl, MetodePembayaran } from '@/lib/types';
+import type { TrsPenjualanHdr, TrsPenjualanDtl, MetodePembayaran, MsMerk } from '@/lib/types';
 import PrintReceipt from '@/components/ui/PrintReceipt';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -14,11 +14,16 @@ export default function DetailPenjualanPage() {
   const isSuperAdmin = user?.role === 'super_admin';
 
   const [data, setData] = useState<(TrsPenjualanHdr & { detail_barang_search?: string })[]>([]);
+  const [merks, setMerks] = useState<MsMerk[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [tempFrom, setTempFrom] = useState(daysAgo(30));
   const [tempTo, setTempTo] = useState(today());
+  const [tempKategori, setTempKategori] = useState('');
+  const [tempMerk, setTempMerk] = useState('');
+  const [selectedKategori, setSelectedKategori] = useState('');
+  const [selectedMerk, setSelectedMerk] = useState('');
   const [dtlModal, setDtlModal] = useState(false);
   const [selected, setSelected] = useState<TrsPenjualanHdr | null>(null);
 
@@ -75,7 +80,11 @@ export default function DetailPenjualanPage() {
   const load = async (f: string, t: string) => {
     setLoading(true);
     try {
-      const result = await getPenjualan(f, t);
+      const [result, mList] = await Promise.all([
+        getPenjualan(f, t),
+        getMerks()
+      ]);
+      setMerks(mList);
       const mapped = result.map(row => {
         const dtls = (row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? [];
         const itemsString = dtls.map(d => d.nama_barang).join(', ');
@@ -92,10 +101,18 @@ export default function DetailPenjualanPage() {
 
   useEffect(() => { load(from, to); }, []);
 
-  const handleFilter = () => { setFrom(tempFrom); setTo(tempTo); load(tempFrom, tempTo); };
+  const handleFilter = () => {
+    setFrom(tempFrom);
+    setTo(tempTo);
+    setSelectedKategori(tempKategori);
+    setSelectedMerk(tempMerk);
+  };
   const handleReset = () => {
     const f = daysAgo(30), t = today();
-    setTempFrom(f); setTempTo(t); setFrom(f); setTo(t); load(f, t);
+    setTempFrom(f); setTempTo(t); setFrom(f); setTo(t);
+    setTempKategori(''); setTempMerk('');
+    setSelectedKategori(''); setSelectedMerk('');
+    load(f, t);
   };
 
   const handlePrint = (row: TrsPenjualanHdr) => {
@@ -103,8 +120,27 @@ export default function DetailPenjualanPage() {
     setTimeout(() => window.print(), 200);
   };
 
-  const totalPenjualan = data.reduce((sum, d) => sum + (d.total_harga ?? 0), 0);
-  const totalProfit = data.reduce((sum, d) => {
+  // Filter client-side
+  const filteredData = data.filter(row => {
+    const dtls = (row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? [];
+    
+    // Kategori Filter
+    if (selectedKategori) {
+      const hasKategori = dtls.some(d => d.kategori === selectedKategori);
+      if (!hasKategori) return false;
+    }
+    
+    // Brand/Merk Filter
+    if (selectedMerk) {
+      const hasMerk = dtls.some(d => d.nama_barang.toLowerCase().includes(selectedMerk.toLowerCase()));
+      if (!hasMerk) return false;
+    }
+    
+    return true;
+  });
+
+  const totalPenjualan = filteredData.reduce((sum, d) => sum + (d.total_harga ?? 0), 0);
+  const totalProfit = filteredData.reduce((sum, d) => {
     const dtls = (d as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? [];
     return sum + dtls.reduce((s, item) => s + (item.harga_jual - item.harga_modal) * item.qty, 0);
   }, 0);
@@ -153,16 +189,36 @@ export default function DetailPenjualanPage() {
       </div>
 
       {/* Filter */}
-      <div className="filter-bar">
-        <div className="form-group">
+      <div className="filter-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', background: '#fff', padding: 16, borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 20 }}>
+        <div className="form-group" style={{ minWidth: 140, flex: 1 }}>
           <label className="form-label">Dari</label>
           <input type="date" className="form-control" value={tempFrom} onChange={e => setTempFrom(e.target.value)} id="dtl-from" />
         </div>
-        <div className="form-group">
+        <div className="form-group" style={{ minWidth: 140, flex: 1 }}>
           <label className="form-label">Sampai</label>
           <input type="date" className="form-control" value={tempTo} onChange={e => setTempTo(e.target.value)} id="dtl-to" />
         </div>
-        <div className="filter-bar-right" style={{ alignSelf: 'flex-end' }}>
+        <div className="form-group" style={{ minWidth: 150, flex: 1 }}>
+          <label className="form-label">Kategori Barang</label>
+          <select className="form-control" value={tempKategori} onChange={e => setTempKategori(e.target.value)} id="dtl-kategori">
+            <option value="">Semua Kategori</option>
+            <option value="HP">HP</option>
+            <option value="HP Non Pajak">HP Non Pajak</option>
+            <option value="Aksesoris">Aksesoris</option>
+            <option value="CCTV">CCTV</option>
+            <option value="Kuota">Kuota</option>
+          </select>
+        </div>
+        <div className="form-group" style={{ minWidth: 150, flex: 1 }}>
+          <label className="form-label">Merk</label>
+          <select className="form-control" value={tempMerk} onChange={e => setTempMerk(e.target.value)} id="dtl-merk">
+            <option value="">Semua Merk</option>
+            {Array.from(new Set(merks.map(m => m.nama))).map(merkName => (
+              <option key={merkName} value={merkName}>{merkName}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 8, height: 38 }}>
           <button className="btn btn-secondary" onClick={handleReset} id="btn-reset-dtl">Reset</button>
           <button className="btn btn-primary" onClick={handleFilter} id="btn-filter-dtl">Filter</button>
         </div>
@@ -172,7 +228,7 @@ export default function DetailPenjualanPage() {
       <div className="metric-cards-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 20 }}>
         <div className="metric-card metric-card-blue">
           <div className="metric-card-label">Jumlah Transaksi</div>
-          <div className="metric-card-value" style={{ fontSize: 28 }}>{data.length}</div>
+          <div className="metric-card-value" style={{ fontSize: 28 }}>{filteredData.length}</div>
         </div>
         <div className="metric-card metric-card-green">
           <div className="metric-card-label">Total Penjualan</div>
@@ -186,7 +242,7 @@ export default function DetailPenjualanPage() {
 
       <DataTable
         columns={columns}
-        data={data}
+        data={filteredData}
         loading={loading}
       />
 
