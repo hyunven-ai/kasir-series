@@ -5,7 +5,7 @@ import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import {
   getHpHdr, createHpHdr, updateHpHdr, deleteHpHdr,
-  getHpDtl, createHpDtl, deleteHpDtl,
+  getHpDtl, createHpDtl, deleteHpDtl, updateHpDtl,
   getSuppliers, getMerks,
 } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
@@ -35,6 +35,9 @@ export default function HpPage() {
   const [newHargaJual, setNewHargaJual] = useState('');
   const [dtlSaving, setDtlSaving] = useState(false);
   const [imeiRows, setImeiRows] = useState<{ imei: string; warna: string }[]>([{ imei: '', warna: '' }]);
+  const [editingDtl, setEditingDtl] = useState<MsHpDtl | null>(null);
+  const [editDtlModal, setEditDtlModal] = useState(false);
+  const [editDtlForm, setEditDtlForm] = useState({ imei: '', warna: '', harga_modal: '', harga_jual: '' });
 
   const load = async () => {
     setLoading(true);
@@ -130,6 +133,36 @@ export default function HpPage() {
       setDtlData(d => d.filter(r => r.id !== id));
       await load();
     } catch { alert('Gagal menghapus'); }
+  };
+
+  const openEditDtl = (row: MsHpDtl) => {
+    setEditingDtl(row);
+    setEditDtlForm({
+      imei: row.imei,
+      warna: row.warna || '',
+      harga_modal: String(row.harga_modal),
+      harga_jual: String(row.harga_jual),
+    });
+    setEditDtlModal(true);
+  };
+
+  const handleSaveDtl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDtl || !selectedHdr) return;
+    try {
+      await updateHpDtl(editingDtl.id, {
+        imei: editDtlForm.imei.trim(),
+        warna: editDtlForm.warna.trim() || undefined,
+        harga_modal: parseInt(editDtlForm.harga_modal),
+        harga_jual: parseInt(editDtlForm.harga_jual),
+        update_by: user?.username,
+      });
+      setDtlData(await getHpDtl(selectedHdr.id));
+      await load();
+      setEditDtlModal(false);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Gagal mengubah detail');
+    }
   };
 
   const handleDeleteHdr = async (id: number) => {
@@ -311,10 +344,13 @@ export default function HpPage() {
               ),
             },
             {
-              key: 'actions', label: 'Aksi', width: '60px',
+              key: 'actions', label: 'Aksi', width: '100px',
               render: (row: MsHpDtl) => (
                 (!row.status || row.status === 'tersedia') ? (
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDtl(row.id)} id={`btn-del-imei-${row.id}`}>🗑️</button>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => openEditDtl(row)} id={`btn-edit-dtl-${row.id}`}>✏️</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDtl(row.id)} id={`btn-del-imei-${row.id}`}>🗑️</button>
+                  </div>
                 ) : null
               ),
             },
@@ -323,6 +359,37 @@ export default function HpPage() {
           loading={dtlLoading}
           searchable={true}
         />
+      </Modal>
+
+      {/* Edit Detail Modal */}
+      <Modal isOpen={editDtlModal} onClose={() => setEditDtlModal(false)} title="Edit Detail IMEI"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setEditDtlModal(false)}>Batal</button>
+            <button className="btn btn-primary" onClick={handleSaveDtl} id="btn-save-dtl-edit">Simpan</button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveDtl}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-group">
+              <label className="form-label">Nomor IMEI *</label>
+              <input type="text" className="form-control" value={editDtlForm.imei} onChange={e => setEditDtlForm(f => ({ ...f, imei: e.target.value }))} required id="edit-dtl-imei" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Warna</label>
+              <input type="text" className="form-control" value={editDtlForm.warna} onChange={e => setEditDtlForm(f => ({ ...f, warna: e.target.value }))} id="edit-dtl-warna" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Harga Modal *</label>
+              <input type="number" className="form-control" value={editDtlForm.harga_modal} onChange={e => setEditDtlForm(f => ({ ...f, harga_modal: e.target.value }))} required id="edit-dtl-modal" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Harga Jual *</label>
+              <input type="number" className="form-control" value={editDtlForm.harga_jual} onChange={e => setEditDtlForm(f => ({ ...f, harga_jual: e.target.value }))} required id="edit-dtl-jual" />
+            </div>
+          </div>
+        </form>
       </Modal>
     </div>
   );

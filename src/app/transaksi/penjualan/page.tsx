@@ -454,10 +454,6 @@ export default function PenjualanPage() {
               <span className="text-muted">Subtotal</span>
               <span>{formatRupiah(total)}</span>
             </div>
-            <div className="pos-total-row">
-              <span className="text-muted">Modal</span>
-              <span style={{ color: '#e53935' }}>{formatRupiah(totalModal)}</span>
-            </div>
             <div className="pos-total-row grand-total">
               <span>TOTAL</span>
               <span>{formatRupiah(total)}</span>

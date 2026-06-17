@@ -5,7 +5,7 @@ import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import {
   getHpNonPajakHdr, createHpNonPajakHdr, updateHpNonPajakHdr,
-  getHpNonPajakDtl, createHpNonPajakDtl, deleteHpNonPajakDtl,
+  getHpNonPajakDtl, createHpNonPajakDtl, deleteHpNonPajakDtl, updateHpNonPajakDtl,
   getSuppliers, getMerks,
 } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +31,9 @@ export default function HpNonPajakPage() {
   const [newHargaJual, setNewHargaJual] = useState('');
   const [dtlSaving, setDtlSaving] = useState(false);
   const [imeiRows, setImeiRows] = useState<{ imei: string; warna: string }[]>([{ imei: '', warna: '' }]);
+  const [editingDtl, setEditingDtl] = useState<MsHpDtlNonPajak | null>(null);
+  const [editDtlModal, setEditDtlModal] = useState(false);
+  const [editDtlForm, setEditDtlForm] = useState({ imei: '', warna: '', harga_modal: '', harga_jual: '' });
 
   const load = async () => {
     setLoading(true);
@@ -128,6 +131,36 @@ export default function HpNonPajakPage() {
     } catch { alert('Gagal menghapus'); }
   };
 
+  const openEditDtl = (row: MsHpDtlNonPajak) => {
+    setEditingDtl(row);
+    setEditDtlForm({
+      imei: row.imei,
+      warna: row.warna || '',
+      harga_modal: String(row.harga_modal),
+      harga_jual: String(row.harga_jual),
+    });
+    setEditDtlModal(true);
+  };
+
+  const handleSaveDtl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDtl || !selectedHdr) return;
+    try {
+      await updateHpNonPajakDtl(editingDtl.id, {
+        imei: editDtlForm.imei.trim(),
+        warna: editDtlForm.warna.trim() || undefined,
+        harga_modal: parseInt(editDtlForm.harga_modal),
+        harga_jual: parseInt(editDtlForm.harga_jual),
+        update_by: user?.username,
+      });
+      setDtlData(await getHpNonPajakDtl(selectedHdr.id));
+      await load();
+      setEditDtlModal(false);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Gagal mengubah detail');
+    }
+  };
+
   const handleDeleteHdr = async (id: number) => {
     if (!confirm('Hapus data HP Non Pajak beserta semua IMEI-nya?')) return;
     try {
@@ -170,10 +203,12 @@ export default function HpNonPajakPage() {
       <DataTable columns={columns} data={data} loading={loading} onAdd={openAddHdr} addLabel="+ Tambah Model HP Non Pajak" />
 
       <Modal isOpen={hdrModal} onClose={() => setHdrModal(false)} title={editingHdr ? 'Edit Model HP Non Pajak' : 'Tambah Model HP Non Pajak'}
-        footer={<>
-          <button className="btn btn-secondary" onClick={() => setHdrModal(false)}>Batal</button>
-          <button className="btn btn-primary" onClick={handleSaveHdr} disabled={hdrSaving} id="btn-save-hpnp">Simpan</button>
-        </>}
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setHdrModal(false)}>Batal</button>
+            <button className="btn btn-primary" onClick={handleSaveHdr} disabled={hdrSaving} id="btn-save-hpnp">Simpan</button>
+          </>
+        }
       >
         <form onSubmit={handleSaveHdr}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -285,10 +320,13 @@ export default function HpNonPajakPage() {
               ),
             },
             {
-              key: 'actions', label: 'Aksi', width: '60px',
+              key: 'actions', label: 'Aksi', width: '100px',
               render: (row: MsHpDtlNonPajak) => (
                 (!row.status || row.status === 'tersedia') ? (
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDtl(row.id)} id={`btn-del-imei-np-${row.id}`}>🗑️</button>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => openEditDtl(row)} id={`btn-edit-dtl-np-${row.id}`}>✏️</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDtl(row.id)} id={`btn-del-imei-np-${row.id}`}>🗑️</button>
+                  </div>
                 ) : null
               ),
             },
@@ -297,6 +335,37 @@ export default function HpNonPajakPage() {
           loading={dtlLoading}
           searchable={true}
         />
+      </Modal>
+
+      {/* Edit Detail Modal */}
+      <Modal isOpen={editDtlModal} onClose={() => setEditDtlModal(false)} title="Edit Detail IMEI Non Pajak"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setEditDtlModal(false)}>Batal</button>
+            <button className="btn btn-primary" onClick={handleSaveDtl} id="btn-save-dtl-edit-np">Simpan</button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveDtl}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-group">
+              <label className="form-label">Nomor IMEI *</label>
+              <input type="text" className="form-control" value={editDtlForm.imei} onChange={e => setEditDtlForm(f => ({ ...f, imei: e.target.value }))} required id="edit-dtl-imei-np" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Warna</label>
+              <input type="text" className="form-control" value={editDtlForm.warna} onChange={e => setEditDtlForm(f => ({ ...f, warna: e.target.value }))} id="edit-dtl-warna-np" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Harga Modal *</label>
+              <input type="number" className="form-control" value={editDtlForm.harga_modal} onChange={e => setEditDtlForm(f => ({ ...f, harga_modal: e.target.value }))} required id="edit-dtl-modal-np" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Harga Jual *</label>
+              <input type="number" className="form-control" value={editDtlForm.harga_jual} onChange={e => setEditDtlForm(f => ({ ...f, harga_jual: e.target.value }))} required id="edit-dtl-jual-np" />
+            </div>
+          </div>
+        </form>
       </Modal>
     </div>
   );

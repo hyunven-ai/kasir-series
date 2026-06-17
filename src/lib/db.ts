@@ -275,6 +275,18 @@ export async function deleteHpDtl(id: number) {
   if (error) throw error;
 }
 
+export async function updateHpDtl(id: number, payload: Partial<MsHpDtl>) {
+  const { data, error } = await supabase
+    .from('ms_hp_dtl')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  await writeLog('UPDATE', 'ms_hp_dtl', `Ubah detail HP ID: ${id} - IMEI: ${payload.imei || '-'} (Warna: ${payload.warna || '-'}, Jual: ${payload.harga_jual ? formatRupiah(payload.harga_jual) : '-'})`);
+  return data as MsHpDtl;
+}
+
 // ============================================
 // STOCK - HP NON PAJAK
 // ============================================
@@ -323,6 +335,18 @@ export async function createHpNonPajakDtl(payload: Omit<MsHpDtlNonPajak, 'id' | 
 export async function deleteHpNonPajakDtl(id: number) {
   const { error } = await supabase.from('ms_hp_dtl_non_pajak').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function updateHpNonPajakDtl(id: number, payload: Partial<MsHpDtlNonPajak>) {
+  const { data, error } = await supabase
+    .from('ms_hp_dtl_non_pajak')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  await writeLog('UPDATE', 'ms_hp_dtl_non_pajak', `Ubah detail HP Non Pajak ID: ${id} - IMEI: ${payload.imei || '-'} (Warna: ${payload.warna || '-'}, Jual: ${payload.harga_jual ? formatRupiah(payload.harga_jual) : '-'})`);
+  return data as MsHpDtlNonPajak;
 }
 
 export async function updateHpNonPajakHdr(id: number, payload: Partial<MsHpHdrNonPajak>) {
@@ -384,6 +408,18 @@ export async function createCctvDtl(payload: Omit<MsCctvDtl, 'id' | 'create_time
 export async function deleteCctvDtl(id: number) {
   const { error } = await supabase.from('ms_cctv_dtl').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function updateCctvDtl(id: number, payload: Partial<MsCctvDtl>) {
+  const { data, error } = await supabase
+    .from('ms_cctv_dtl')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  await writeLog('UPDATE', 'ms_cctv_dtl', `Ubah detail CCTV ID: ${id} - SN: ${payload.sn_cctv || '-'} (Warna: ${payload.warna || '-'}, Jual: ${payload.harga_jual ? formatRupiah(payload.harga_jual) : '-'})`);
+  return data as MsCctvDtl;
 }
 
 export async function updateCctvHdr(id: number, payload: Partial<MsCctvHdr>) {
