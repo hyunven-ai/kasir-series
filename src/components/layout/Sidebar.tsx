@@ -71,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Pengguna', href: '/pengaturan/pengguna' },
       { label: 'Log Aktivitas', href: '/pengaturan/log-aktivitas' },
+      { label: 'Log Barang', href: '/pengaturan/log-barang' },
     ],
   },
 ];
@@ -148,16 +149,18 @@ export default function Sidebar({ user, collapsed, mobileOpen, onCloseMobile }: 
 
             {(!collapsed || mobileOpen) && (
               <div className={`sidebar-group-items${openGroups[group.label] ? ' open' : ''}`}>
-                {group.items.map(item => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`sidebar-item${pathname?.startsWith(item.href) ? ' active' : ''}`}
-                    onClick={onCloseMobile}
-                  >
-                    <span className="sidebar-item-label">{item.label}</span>
-                  </Link>
-                ))}
+                {group.items
+                  .filter(item => !(user?.role === 'kasir' && item.href === '/transaksi/pembelian'))
+                  .map(item => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`sidebar-item${pathname?.startsWith(item.href) ? ' active' : ''}`}
+                      onClick={onCloseMobile}
+                    >
+                      <span className="sidebar-item-label">{item.label}</span>
+                    </Link>
+                  ))}
               </div>
             )}
           </div>

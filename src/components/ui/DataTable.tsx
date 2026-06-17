@@ -32,7 +32,9 @@ export default function DataTable<T extends object>({
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
@@ -42,28 +44,88 @@ export default function DataTable<T extends object>({
     );
   }, [data, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortOrder) return filtered;
+    return [...filtered].sort((a, b) => {
+      const valA = (a as Record<string, unknown>)[sortKey];
+      const valB = (b as Record<string, unknown>)[sortKey];
+      
+      if (valA === undefined || valA === null) return 1;
+      if (valB === undefined || valB === null) return -1;
+      
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+      
+      const numA = Number(valA);
+      const numB = Number(valB);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return sortOrder === 'asc' ? numA - numB : numB - numA;
+      }
+      
+      if (strA < strB) return sortOrder === 'asc' ? -1 : 1;
+      if (strA > strB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortKey, sortOrder]);
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc');
+      } else if (sortOrder === 'desc') {
+        setSortKey(null);
+        setSortOrder(null);
+      } else {
+        setSortOrder('asc');
+      }
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+    setPage(1);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="table-container">
       <div className="table-toolbar">
-        {searchable && (
-          <div className="table-search">
-            <svg className="table-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          {searchable && (
+            <div className="table-search">
+              <svg className="table-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Cari..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                id="table-search"
+              />
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#666', fontWeight: 500, whiteSpace: 'nowrap' }}>Baris:</span>
+            <select
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
               className="form-control"
-              placeholder="Cari..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-              id="table-search"
-            />
+              style={{ width: 75, height: 34, fontSize: 12, padding: '4px 8px' }}
+              id="select-page-size"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
           </div>
-        )}
+        </div>
+        
         <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
           {extraActions}
           {onAdd && (
@@ -83,11 +145,30 @@ export default function DataTable<T extends object>({
           <thead>
             <tr>
               <th style={{ width: 40 }}>#</th>
-              {columns.map(col => (
-                <th key={col.key} style={col.width ? { width: col.width } : undefined}>
-                  {col.label}
-                </th>
-              ))}
+              {columns.map(col => {
+                const isSortable = col.key !== 'actions' && col.key !== 'action' && col.label.toLowerCase() !== 'aksi' && col.label.toLowerCase() !== 'actions';
+                const isSorted = sortKey === col.key;
+                return (
+                  <th
+                    key={col.key}
+                    style={{
+                      ...(col.width ? { width: col.width } : {}),
+                      cursor: isSortable ? 'pointer' : 'default',
+                      userSelect: 'none',
+                    }}
+                    onClick={() => isSortable && handleSort(col.key)}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {col.label}
+                      {isSortable && (
+                        <span style={{ fontSize: 10, color: isSorted ? '#e53935' : '#aaa' }}>
+                          {isSorted ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ' ↕'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -125,10 +206,10 @@ export default function DataTable<T extends object>({
       </div>
 
       {/* Pagination */}
-      {filtered.length > pageSize && (
+      {sorted.length > pageSize && (
         <div className="table-pagination">
           <span>
-            Menampilkan {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} dari {filtered.length} data
+            Menampilkan {Math.min((page - 1) * pageSize + 1, sorted.length)}–{Math.min(page * pageSize, sorted.length)} dari {sorted.length} data
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
             <button

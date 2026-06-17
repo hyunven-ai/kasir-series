@@ -27,10 +27,10 @@ export default function HpNonPajakPage() {
   const [selectedHdr, setSelectedHdr] = useState<MsHpHdrNonPajak | null>(null);
   const [dtlData, setDtlData] = useState<MsHpDtlNonPajak[]>([]);
   const [dtlLoading, setDtlLoading] = useState(false);
-  const [newImei, setNewImei] = useState('');
   const [newHargaModal, setNewHargaModal] = useState('');
   const [newHargaJual, setNewHargaJual] = useState('');
   const [dtlSaving, setDtlSaving] = useState(false);
+  const [imeiRows, setImeiRows] = useState<{ imei: string; warna: string }[]>([{ imei: '', warna: '' }]);
 
   const load = async () => {
     setLoading(true);
@@ -49,7 +49,7 @@ export default function HpNonPajakPage() {
     setSelectedHdr(row);
     setDtlLoading(true);
     setDtlModal(true);
-    setNewImei(''); setNewHargaModal(''); setNewHargaJual('');
+    setImeiRows([{ imei: '', warna: '' }]); setNewHargaModal(''); setNewHargaJual('');
     try { setDtlData(await getHpNonPajakDtl(row.id)); }
     catch { /* no-op */ }
     finally { setDtlLoading(false); }
@@ -80,22 +80,43 @@ export default function HpNonPajakPage() {
   };
 
   const handleAddImei = async () => {
-    if (!newImei.trim() || !newHargaModal || !newHargaJual || !selectedHdr) return;
+    const activeRows = imeiRows.filter(r => r.imei.trim());
+    if (activeRows.length === 0 || !newHargaModal || !newHargaJual || !selectedHdr) return;
     setDtlSaving(true);
-    try {
-      await createHpNonPajakDtl({
-        idhdr: selectedHdr.id,
-        imei: newImei.trim(),
-        harga_modal: parseInt(newHargaModal),
-        harga_jual: parseInt(newHargaJual),
-        create_by: user?.username,
-      });
-      setDtlData(await getHpNonPajakDtl(selectedHdr.id));
-      setNewImei(''); setNewHargaModal(''); setNewHargaJual('');
-      await load();
-    } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'IMEI sudah terdaftar');
-    } finally { setDtlSaving(false); }
+    let successCount = 0;
+    let failImeis: string[] = [];
+    
+    for (const row of activeRows) {
+      try {
+        await createHpNonPajakDtl({
+          idhdr: selectedHdr.id,
+          imei: row.imei.trim(),
+          warna: row.warna.trim() || undefined,
+          harga_modal: parseInt(newHargaModal),
+          harga_jual: parseInt(newHargaJual),
+          create_by: user?.username,
+        });
+        successCount++;
+      } catch {
+        failImeis.push(row.imei);
+      }
+    }
+    
+    setDtlData(await getHpNonPajakDtl(selectedHdr.id));
+    await load(); // refresh stock count
+    
+    if (failImeis.length > 0) {
+      alert(`Berhasil menambahkan ${successCount} IMEI. Gagal: ${failImeis.join(', ')} (Kemungkinan duplikat/sudah terdaftar).`);
+      setImeiRows(failImeis.map(imei => {
+        const found = imeiRows.find(r => r.imei === imei);
+        return { imei, warna: found?.warna || '' };
+      }));
+    } else {
+      setImeiRows([{ imei: '', warna: '' }]);
+      setNewHargaModal('');
+      setNewHargaJual('');
+    }
+    setDtlSaving(false);
   };
 
   const handleDeleteDtl = async (id: number) => {
@@ -181,38 +202,101 @@ export default function HpNonPajakPage() {
         <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: '#444' }}>+ Tambah IMEI Baru</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px auto', gap: 10, alignItems: 'flex-end' }}>
-            <div className="form-group"><label className="form-label">Nomor IMEI</label>
-              <input type="text" className="form-control barcode-input" placeholder="Scan atau ketik IMEI..." value={newImei} onChange={e => setNewImei(e.target.value)} id="input-imei-np" onKeyDown={e => e.key === 'Enter' && handleAddImei()} />
+            <div className="form-group">
+              <label className="form-label">IMEI & Warna</label>
+              {imeiRows.map((row, index) => (
+                <div key={index} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                  <input
+                    type="text" className="form-control barcode-input"
+                    placeholder={`IMEI ${index + 1}`}
+                    value={row.imei}
+                    onChange={e => {
+                      const updated = [...imeiRows];
+                      updated[index].imei = e.target.value;
+                      setImeiRows(updated);
+                    }}
+                    onKeyDown={e => e.key === 'Enter' && handleAddImei()}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="text" className="form-control"
+                    placeholder="Warna"
+                    value={row.warna}
+                    onChange={e => {
+                      const updated = [...imeiRows];
+                      updated[index].warna = e.target.value;
+                      setImeiRows(updated);
+                    }}
+                    onKeyDown={e => e.key === 'Enter' && handleAddImei()}
+                    style={{ width: 120 }}
+                  />
+                  {imeiRows.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-icon btn-sm"
+                      onClick={() => setImeiRows(prev => prev.filter((_, idx) => idx !== index))}
+                      style={{ width: 28, height: 28, flexShrink: 0 }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setImeiRows(prev => [...prev, { imei: '', warna: '' }])}
+                style={{ marginTop: 4, height: 28, padding: '2px 8px', fontSize: 11 }}
+              >
+                + Tambah Baris IMEI
+              </button>
             </div>
-            <div className="form-group"><label className="form-label">Harga Modal</label>
-              <input type="number" className="form-control" value={newHargaModal} onChange={e => setNewHargaModal(e.target.value)} id="input-modal-np" />
+            <div className="form-group" style={{ alignSelf: 'flex-start' }}>
+              <label className="form-label">Harga Modal</label>
+              <input type="number" className="form-control" placeholder="0" value={newHargaModal} onChange={e => setNewHargaModal(e.target.value)} id="input-modal-np" />
             </div>
-            <div className="form-group"><label className="form-label">Harga Jual</label>
-              <input type="number" className="form-control" value={newHargaJual} onChange={e => setNewHargaJual(e.target.value)} id="input-jual-np" />
+            <div className="form-group" style={{ alignSelf: 'flex-start' }}>
+              <label className="form-label">Harga Jual</label>
+              <input type="number" className="form-control" placeholder="0" value={newHargaJual} onChange={e => setNewHargaJual(e.target.value)} id="input-jual-np" />
             </div>
-            <button className="btn btn-success" onClick={handleAddImei} disabled={dtlSaving} id="btn-add-imei-np">+ Add</button>
+            <button className="btn btn-success" onClick={handleAddImei} disabled={dtlSaving} id="btn-add-imei-np" style={{ alignSelf: 'flex-start', marginTop: 20 }}>
+              {dtlSaving ? '...' : '+ Add'}
+            </button>
           </div>
         </div>
-        <table className="data-table">
-          <thead><tr><th>#</th><th>IMEI</th><th>Modal</th><th>Jual</th><th>Status</th><th>Aksi</th></tr></thead>
-          <tbody>
-            {dtlLoading ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: 20 }}><div className="spinner" style={{ margin: '0 auto' }} /></td></tr>
-              : dtlData.map((d, i) => (
-              <tr key={d.id}>
-                <td className="text-muted text-sm">{i + 1}</td>
-                <td><code style={{ fontSize: 12 }}>{d.imei}</code></td>
-                <td>{formatRupiah(d.harga_modal)}</td>
-                <td>{formatRupiah(d.harga_jual)}</td>
-                <td><span className={`badge ${d.status === 'terjual' ? 'badge-error' : 'badge-success'}`}>{d.status === 'terjual' ? 'Terjual' : 'Tersedia'}</span></td>
-                <td>
-                  {(!d.status || d.status === 'tersedia') && (
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDtl(d.id)} id={`btn-del-imei-np-${d.id}`}>🗑️</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        {/* IMEI List */}
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>
+          Daftar IMEI ({dtlData.length} unit)
+        </div>
+        <DataTable
+          columns={[
+            { key: 'imei', label: 'IMEI', render: (row: MsHpDtlNonPajak) => <code style={{ fontSize: 12 }}>{row.imei}</code> },
+            { key: 'warna', label: 'Warna', render: (row: MsHpDtlNonPajak) => row.warna || '-' },
+            { key: 'harga_modal', label: 'Harga Modal', render: (row: MsHpDtlNonPajak) => formatRupiah(row.harga_modal) },
+            { key: 'harga_jual', label: 'Harga Jual', render: (row: MsHpDtlNonPajak) => formatRupiah(row.harga_jual) },
+            { key: 'create_time', label: 'Tanggal Masuk', render: (row: MsHpDtlNonPajak) => formatDate(row.create_time) },
+            {
+              key: 'status', label: 'Status',
+              render: (row: MsHpDtlNonPajak) => (
+                <span className={`badge ${row.status === 'terjual' ? 'badge-error' : 'badge-success'}`}>
+                  {row.status === 'terjual' ? 'Terjual' : 'Tersedia'}
+                </span>
+              ),
+            },
+            {
+              key: 'actions', label: 'Aksi', width: '60px',
+              render: (row: MsHpDtlNonPajak) => (
+                (!row.status || row.status === 'tersedia') ? (
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDtl(row.id)} id={`btn-del-imei-np-${row.id}`}>🗑️</button>
+                ) : null
+              ),
+            },
+          ]}
+          data={dtlData}
+          loading={dtlLoading}
+          searchable={true}
+        />
       </Modal>
     </div>
   );

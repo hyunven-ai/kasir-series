@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import { getPembelian, createPembelian, getSuppliers, getAksesoris, getKuota } from '@/lib/db';
@@ -20,6 +21,20 @@ interface CartPembelian {
 
 export default function PembelianPage() {
   const user = getCurrentUser();
+
+  if (user?.role === 'kasir') {
+    return (
+      <div style={{ padding: 60, textAlign: 'center', background: '#fff', borderRadius: 8, border: '1px solid #eee', marginTop: 40 }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontFamily: 'Outfit', fontSize: 24, fontWeight: 700, marginBottom: 8, color: '#e53935' }}>Akses Ditolak</h2>
+        <p style={{ color: '#666', fontSize: 14, marginBottom: 24 }}>Anda tidak memiliki izin/wewenang untuk mengakses halaman Transaksi Pembelian.</p>
+        <Link href="/dashboard" className="btn btn-primary">
+          Kembali ke Dashboard
+        </Link>
+      </div>
+    );
+  }
+
   const [data, setData] = useState<TrsPembelianHdr[]>([]);
   const [loading, setLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<MsSupplier[]>([]);

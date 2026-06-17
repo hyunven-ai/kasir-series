@@ -58,13 +58,16 @@ ALTER TABLE public.trs_penjualan_hdr
 -- untuk tracking barang serial terjual/tersedia
 -- ============================================
 ALTER TABLE public.ms_hp_dtl
-    ADD COLUMN IF NOT EXISTS status character varying(20) DEFAULT NULL;
+    ADD COLUMN IF NOT EXISTS status character varying(20) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS warna character varying(256) DEFAULT NULL;
 
 ALTER TABLE public.ms_hp_dtl_non_pajak
-    ADD COLUMN IF NOT EXISTS status character varying(20) DEFAULT NULL;
+    ADD COLUMN IF NOT EXISTS status character varying(20) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS warna character varying(256) DEFAULT NULL;
 
 ALTER TABLE public.ms_cctv_dtl
-    ADD COLUMN IF NOT EXISTS status character varying(20) DEFAULT NULL;
+    ADD COLUMN IF NOT EXISTS status character varying(20) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS warna character varying(256) DEFAULT NULL;
 
 -- ============================================
 -- RPC Functions untuk mengurangi stok

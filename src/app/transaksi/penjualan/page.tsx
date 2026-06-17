@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { searchBarcode, createPenjualan } from '@/lib/db';
+import { searchBarcode, createPenjualan, searchProductsByName } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, generateInvoiceNo, today } from '@/lib/utils';
 import type { CartItem, MetodePembayaran } from '@/lib/types';
@@ -35,6 +35,51 @@ export default function PenjualanPage() {
   } | null>(null);
 
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const handleInputChange = async (val: string) => {
+    setBarcode(val);
+    if (val.trim().length >= 2) {
+      try {
+        const results = await searchProductsByName(val.trim());
+        setSearchResults(results.slice(0, 10));
+        setShowSuggestions(true);
+      } catch {
+        setSearchResults([]);
+      }
+    } else {
+      setSearchResults([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (item: any) => {
+    const existing = cart.findIndex(c => c.code === item.code && c.kategori === item.kategori);
+    if (existing >= 0) {
+      if (cart[existing].qty >= (item.max_qty ?? 1)) {
+        setSearchError(`Stok maksimal ${item.max_qty} unit`);
+        return;
+      }
+      setCart(prev => prev.map((c, i) => i === existing ? { ...c, qty: c.qty + 1 } : c));
+    } else {
+      setCart(prev => [...prev, item]);
+    }
+    setBarcode('');
+    setSearchResults([]);
+    setShowSuggestions(false);
+    barcodeRef.current?.focus();
+  };
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (showSuggestions && !document.getElementById('pos-barcode-container')?.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showSuggestions]);
 
   const handleScanSuccess = async (scannedValue: string) => {
     if (!scannedValue.trim()) return;
@@ -183,20 +228,64 @@ export default function PenjualanPage() {
         {/* Left: Barcode search + item list */}
         <div className="pos-products">
           {/* Barcode Input */}
-          <div style={{ padding: 16, borderBottom: '1px solid #eee', background: '#fafafa' }}>
+          <div style={{ padding: 16, borderBottom: '1px solid #eee', background: '#fafafa' }} id="pos-barcode-container">
             <div style={{ display: 'flex', gap: 8 }}>
-              <div className="barcode-input-wrap" style={{ flex: 1 }}>
+              <div className="barcode-input-wrap" style={{ flex: 1, position: 'relative' }}>
                 <input
                   ref={barcodeRef}
                   type="text"
                   className="form-control form-control-lg barcode-input"
-                  placeholder="Scan barcode / IMEI / SN atau ketik kode barang..."
+                  placeholder="Ketik nama barang atau scan barcode / IMEI / SN..."
                   value={barcode}
-                  onChange={e => setBarcode(e.target.value)}
+                  onChange={e => handleInputChange(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleBarcodeSearch()}
                   id="pos-barcode-input"
                   autoFocus
                 />
+                {showSuggestions && searchResults.length > 0 && (
+                  <div className="search-suggestions-dropdown" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    maxHeight: 250,
+                    overflowY: 'auto',
+                    marginTop: 4
+                  }}>
+                    {searchResults.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="suggestion-item"
+                        style={{
+                          padding: '10px 14px',
+                          borderBottom: '1px solid #f0f0f0',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          textAlign: 'left'
+                        }}
+                        onClick={() => handleSelectSuggestion(item)}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>{item.nama_barang}</div>
+                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                            <span className="badge badge-sm badge-info" style={{ marginRight: 6, fontSize: 9, padding: '2px 6px' }}>{item.kategori}</span>
+                            <code>{item.code || 'Tanpa Barcode'}</code>
+                          </div>
+                        </div>
+                        <div style={{ fontWeight: 700, color: '#1565c0', fontSize: 13 }}>
+                          {formatRupiah(item.harga_jual)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {/* Camera scan button */}
               <button

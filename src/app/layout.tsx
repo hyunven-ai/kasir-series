@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Series Ponsel — POS & Inventaris",
   description: "Sistem Point of Sale dan Manajemen Inventaris Toko Handphone Series Ponsel",
   keywords: "kasir, POS, inventaris, handphone, series ponsel",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

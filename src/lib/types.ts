@@ -102,6 +102,7 @@ export interface MsHpDtl {
   harga_jual: number;
   harga_modal: number;
   status?: 'tersedia' | 'terjual';
+  warna?: string;
   create_time: string;
   create_by?: string;
   update_time?: string;
@@ -130,6 +131,7 @@ export interface MsHpDtlNonPajak {
   harga_jual: number;
   harga_modal: number;
   status?: 'tersedia' | 'terjual';
+  warna?: string;
   create_time: string;
   create_by?: string;
   update_time?: string;
@@ -158,6 +160,7 @@ export interface MsCctvDtl {
   harga_jual: number;
   harga_modal: number;
   status?: 'tersedia' | 'terjual';
+  warna?: string;
   create_time: string;
   create_by?: string;
   update_time?: string;

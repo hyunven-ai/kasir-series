@@ -145,6 +145,7 @@ export async function createAksesoris(payload: Omit<MsAksesoris, 'id' | 'create_
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_aksesoris', `Tambah Aksesoris: ${payload.nama} (Merk: ${payload.merk}, Qty: ${payload.qty})`);
   return data as MsAksesoris;
 }
 
@@ -184,6 +185,7 @@ export async function createKuota(payload: Omit<MsKuota, 'id' | 'create_time'>) 
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_kuota', `Tambah Kuota: ${payload.description} (Operator: ${payload.operator}, Qty: ${payload.qty})`);
   return data as MsKuota;
 }
 
@@ -227,6 +229,7 @@ export async function createHpHdr(payload: Omit<MsHpHdr, 'id' | 'create_time' | 
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_hp_hdr', `Tambah Model HP: ${payload.nama} (Merk: ${payload.merk}, Supplier: ${payload.supplier})`);
   return data as MsHpHdr;
 }
 
@@ -263,6 +266,7 @@ export async function createHpDtl(payload: Omit<MsHpDtl, 'id' | 'create_time'>) 
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_hp_dtl', `Tambah IMEI HP: ${payload.imei} (Warna: ${payload.warna || '-'}, Modal: ${formatRupiah(payload.harga_modal)})`);
   return data as MsHpDtl;
 }
 
@@ -291,6 +295,7 @@ export async function createHpNonPajakHdr(payload: Omit<MsHpHdrNonPajak, 'id' | 
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_hp_hdr_non_pajak', `Tambah Model HP Non Pajak: ${payload.nama} (Merk: ${payload.merk}, Supplier: ${payload.supplier})`);
   return data as MsHpHdrNonPajak;
 }
 
@@ -311,6 +316,7 @@ export async function createHpNonPajakDtl(payload: Omit<MsHpDtlNonPajak, 'id' | 
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_hp_dtl_non_pajak', `Tambah IMEI HP Non Pajak: ${payload.imei} (Warna: ${payload.warna || '-'}, Modal: ${formatRupiah(payload.harga_modal)})`);
   return data as MsHpDtlNonPajak;
 }
 
@@ -350,6 +356,7 @@ export async function createCctvHdr(payload: Omit<MsCctvHdr, 'id' | 'create_time
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_cctv_hdr', `Tambah Model CCTV: ${payload.nama} (Merk: ${payload.merk}, Supplier: ${payload.supplier})`);
   return data as MsCctvHdr;
 }
 
@@ -370,6 +377,7 @@ export async function createCctvDtl(payload: Omit<MsCctvDtl, 'id' | 'create_time
     .select()
     .single();
   if (error) throw error;
+  await writeLog('INSERT', 'ms_cctv_dtl', `Tambah SN CCTV: ${payload.sn_cctv} (Warna: ${payload.warna || '-'}, Modal: ${formatRupiah(payload.harga_modal)})`);
   return data as MsCctvDtl;
 }
 
@@ -780,6 +788,137 @@ export async function searchBarcode(barcode: string) {
   return null;
 }
 
+export async function searchProductsByName(query: string) {
+  const q = `%${query}%`;
+  const results: any[] = [];
+
+  // 1. Aksesoris
+  const { data: aks } = await supabase
+    .from('ms_aksesoris')
+    .select('*')
+    .or(`nama.ilike.${q},merk.ilike.${q}`)
+    .gt('qty', 0);
+  
+  if (aks) {
+    aks.forEach(item => {
+      results.push({
+        idbarang: item.id,
+        kategori: 'Aksesoris' as const,
+        code: item.barcode,
+        nama_barang: `${item.merk} ${item.nama}`,
+        qty: 1,
+        harga_modal: item.harga_modal,
+        harga_jual: item.harga_jual,
+        supplier: item.supplier,
+        max_qty: item.qty,
+      });
+    });
+  }
+
+  // 2. Kuota
+  const { data: kuo } = await supabase
+    .from('ms_kuota')
+    .select('*')
+    .or(`description.ilike.${q},operator.ilike.${q}`)
+    .gt('qty', 0);
+  
+  if (kuo) {
+    kuo.forEach(item => {
+      results.push({
+        idbarang: item.id,
+        kategori: 'Kuota' as const,
+        code: item.barcode,
+        nama_barang: `${item.operator} ${item.description}`,
+        qty: 1,
+        harga_modal: item.harga_modal,
+        harga_jual: item.harga_jual,
+        supplier: item.supplier,
+        max_qty: item.qty,
+      });
+    });
+  }
+
+  // 3. HP
+  const { data: hp } = await supabase
+    .from('ms_hp_dtl')
+    .select('*, ms_hp_hdr(nama, merk, supplier)')
+    .or('status.is.null,status.eq.tersedia');
+  
+  if (hp) {
+    hp.forEach(item => {
+      const hdr = (item as any).ms_hp_hdr;
+      const namaFull = `${hdr?.merk} ${hdr?.nama}`;
+      if (namaFull.toLowerCase().includes(query.toLowerCase()) || item.imei.includes(query)) {
+        results.push({
+          idbarang: item.id,
+          kategori: 'HP' as const,
+          code: item.imei,
+          nama_barang: namaFull,
+          qty: 1,
+          harga_modal: item.harga_modal,
+          harga_jual: item.harga_jual,
+          supplier: hdr?.supplier,
+          max_qty: 1,
+        });
+      }
+    });
+  }
+
+  // 4. HP Non Pajak
+  const { data: hpnp } = await supabase
+    .from('ms_hp_dtl_non_pajak')
+    .select('*, ms_hp_hdr_non_pajak(nama, merk, supplier)')
+    .or('status.is.null,status.eq.tersedia');
+  
+  if (hpnp) {
+    hpnp.forEach(item => {
+      const hdr = (item as any).ms_hp_hdr_non_pajak;
+      const namaFull = `${hdr?.merk} ${hdr?.nama} (Non Pajak)`;
+      if (namaFull.toLowerCase().includes(query.toLowerCase()) || item.imei.includes(query)) {
+        results.push({
+          idbarang: item.id,
+          kategori: 'HP Non Pajak' as const,
+          code: item.imei,
+          nama_barang: namaFull,
+          qty: 1,
+          harga_modal: item.harga_modal,
+          harga_jual: item.harga_jual,
+          supplier: hdr?.supplier,
+          max_qty: 1,
+        });
+      }
+    });
+  }
+
+  // 5. CCTV
+  const { data: cctv } = await supabase
+    .from('ms_cctv_dtl')
+    .select('*, ms_cctv_hdr(nama, merk, supplier)')
+    .or('status.is.null,status.eq.tersedia');
+  
+  if (cctv) {
+    cctv.forEach(item => {
+      const hdr = (item as any).ms_cctv_hdr;
+      const namaFull = `${hdr?.merk} ${hdr?.nama}`;
+      if (namaFull.toLowerCase().includes(query.toLowerCase()) || item.sn_cctv.includes(query)) {
+        results.push({
+          idbarang: item.id,
+          kategori: 'CCTV' as const,
+          code: item.sn_cctv,
+          nama_barang: namaFull,
+          qty: 1,
+          harga_modal: item.harga_modal,
+          harga_jual: item.harga_jual,
+          supplier: hdr?.supplier,
+          max_qty: 1,
+        });
+      }
+    });
+  }
+
+  return results;
+}
+
 // ============================================
 // LOG HISTORI / AUDIT TRAIL
 // ============================================
@@ -804,6 +943,25 @@ export async function getLogs() {
   const { data, error } = await supabase
     .from('log_aktivitas')
     .select('*')
+    .order('waktu', { ascending: false });
+  if (error) throw error;
+  
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    user: row.username,
+    aksi: row.aksi,
+    tabel: row.tabel,
+    detail: row.detail,
+    waktu: row.waktu
+  }));
+}
+
+export async function getItemEntryLogs() {
+  const { data, error } = await supabase
+    .from('log_aktivitas')
+    .select('*')
+    .eq('aksi', 'INSERT')
+    .in('tabel', ['ms_aksesoris', 'ms_kuota', 'ms_hp_dtl', 'ms_hp_dtl_non_pajak', 'ms_cctv_dtl'])
     .order('waktu', { ascending: false });
   if (error) throw error;
   

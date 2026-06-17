@@ -13,7 +13,7 @@ export default function DetailPenjualanPage() {
   const user = getCurrentUser();
   const isSuperAdmin = user?.role === 'super_admin';
 
-  const [data, setData] = useState<TrsPenjualanHdr[]>([]);
+  const [data, setData] = useState<(TrsPenjualanHdr & { detail_barang_search?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
@@ -74,7 +74,18 @@ export default function DetailPenjualanPage() {
 
   const load = async (f: string, t: string) => {
     setLoading(true);
-    try { setData(await getPenjualan(f, t)); }
+    try {
+      const result = await getPenjualan(f, t);
+      const mapped = result.map(row => {
+        const dtls = (row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? [];
+        const itemsString = dtls.map(d => d.nama_barang).join(', ');
+        return {
+          ...row,
+          detail_barang_search: itemsString,
+        };
+      });
+      setData(mapped);
+    }
     catch { /* no-op */ }
     finally { setLoading(false); }
   };
@@ -101,6 +112,15 @@ export default function DetailPenjualanPage() {
   const columns = [
     { key: 'nomor_invoice', label: 'No. Invoice', render: (row: TrsPenjualanHdr) => <code style={{ fontSize: 11 }}>{row.nomor_invoice}</code> },
     { key: 'customer', label: 'Pelanggan', render: (row: TrsPenjualanHdr) => <strong>{row.customer}</strong> },
+    {
+      key: 'detail_barang_search',
+      label: 'Daftar Barang',
+      render: (row: TrsPenjualanHdr & { detail_barang_search?: string }) => (
+        <span style={{ fontSize: 12, color: '#555', display: 'block', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.detail_barang_search}>
+          {row.detail_barang_search || '-'}
+        </span>
+      ),
+    },
     { key: 'tanggal_penjualan', label: 'Tanggal', render: (row: TrsPenjualanHdr) => formatDateTime(row.tanggal_penjualan) },
     {
       key: 'metode_pembayaran', label: 'Metode',

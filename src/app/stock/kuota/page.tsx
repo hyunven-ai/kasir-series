@@ -7,6 +7,7 @@ import { getKuota, createKuota, updateKuota, deleteKuota, getSuppliers, getOpera
 import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, formatDate } from '@/lib/utils';
 import type { MsKuota, MsSupplier, MsOperator } from '@/lib/types';
+import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 
 const emptyForm = { supplier: '', barcode: '', operator: '', description: '', qty: '', harga_modal: '', harga_jual: '' };
 
@@ -21,6 +22,7 @@ export default function KuotaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState(emptyForm);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -127,7 +129,19 @@ export default function KuotaPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Barcode *</label>
-              <input type="text" className="form-control barcode-input" placeholder="Barcode produk" value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))} required id="kuo-barcode" />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="text" className="form-control barcode-input" style={{ flex: 1 }} placeholder="Barcode produk" value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))} required id="kuo-barcode" />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setScannerOpen(true)}
+                  title="Scan menggunakan kamera"
+                  id="btn-scan-camera-kuo"
+                  style={{ padding: '0 12px' }}
+                >
+                  📷
+                </button>
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Qty *</label>
@@ -144,6 +158,11 @@ export default function KuotaPage() {
           </div>
         </form>
       </Modal>
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={(code) => setForm(f => ({ ...f, barcode: code }))}
+      />
     </div>
   );
 }
