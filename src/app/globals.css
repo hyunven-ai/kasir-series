@@ -1256,6 +1256,7 @@ input[type=number]::-webkit-inner-spin-button {
     width: 100% !important;
     background: #fff !important;
     color: #000 !important;
+    font-family: 'Inter', Arial, sans-serif !important;
   }
 
   .print-receipt-container {
@@ -1265,6 +1266,70 @@ input[type=number]::-webkit-inner-spin-button {
     padding: 4mm !important;
     margin: 0 !important;
     box-sizing: border-box !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .receipt-shop-name {
+    font-size: 16pt !important;
+    font-weight: 800 !important;
+    margin: 4px 0 2px !important;
+  }
+
+  .receipt-shop-address {
+    font-size: 10pt !important;
+    font-weight: 500 !important;
+  }
+
+  .receipt-header span {
+    font-size: 9.5pt !important;
+  }
+
+  .receipt-meta {
+    font-size: 10.5pt !important;
+    font-weight: 600 !important;
+    margin-top: 6px !important;
+  }
+
+  .receipt-meta span {
+    font-size: 10.5pt !important;
+  }
+
+  .receipt-item-title {
+    font-size: 11pt !important;
+    font-weight: 700 !important;
+  }
+
+  .receipt-item-details {
+    font-size: 10.5pt !important;
+    font-weight: 600 !important;
+  }
+
+  .receipt-summary-row {
+    font-size: 10.5pt !important;
+    font-weight: 600 !important;
+  }
+
+  .receipt-total-row {
+    font-size: 10.5pt !important;
+    font-weight: 600 !important;
+  }
+
+  .receipt-total-row.bold {
+    font-size: 13pt !important;
+    font-weight: 800 !important;
+  }
+
+  .receipt-footer {
+    font-size: 11pt !important;
+    font-weight: 800 !important;
+    margin-top: 12px !important;
+  }
+
+  /* Warning text box styling */
+  .print-receipt-container div[style*="border"] {
+    font-size: 9.5pt !important;
+    padding: 6px !important;
   }
 }
 
