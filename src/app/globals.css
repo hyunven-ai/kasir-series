@@ -1246,14 +1246,14 @@ input[type=number]::-webkit-inner-spin-button {
   }
 
   @page {
-    size: auto;
+    size: 80mm auto;
     margin: 0;
   }
 
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    width: 100% !important;
+    width: 80mm !important;
     background: #fff !important;
     color: #000 !important;
     font-family: 'Inter', Arial, sans-serif !important;
@@ -1261,8 +1261,8 @@ input[type=number]::-webkit-inner-spin-button {
 
   .print-receipt-container {
     display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
     padding: 4mm !important;
     margin: 0 !important;
     box-sizing: border-box !important;
