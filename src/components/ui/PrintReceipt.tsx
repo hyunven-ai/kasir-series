@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { formatRupiah, formatDateTime } from '@/lib/utils';
 
 interface PrintReceiptProps {
@@ -27,6 +29,13 @@ export default function PrintReceipt({
   bayar,
   invoiceIndex,
 }: PrintReceiptProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   // Calculate unique product count and total quantity
   const productCount = items.length;
   const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
@@ -39,7 +48,9 @@ export default function PrintReceipt({
   const cleanBayar = bayar !== undefined ? bayar : total;
   const kembalian = cleanBayar - total;
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="print-receipt-container">
       {/* Logo */}
       <div className="receipt-header">
@@ -149,6 +160,7 @@ export default function PrintReceipt({
       <div className="receipt-footer" style={{ textDecoration: 'underline', fontStyle: 'italic', marginTop: '10px' }}>
         TERIMA KASIH BOSKUUU!!!
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

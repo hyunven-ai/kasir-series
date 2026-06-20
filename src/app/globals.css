@@ -1240,53 +1240,20 @@ input[type=number]::-webkit-inner-spin-button {
 
 /* Print styles */
 @media print {
-  .no-print { display: none !important; }
-  .app-sidebar { display: none !important; }
-  .app-header { display: none !important; }
-  .app-main { margin-left: 0 !important; }
-
-  /* Hide normal screens when printing */
-  .app-sidebar,
-  .app-header,
-  .mobile-bottom-nav,
-  .page-header,
-  .pos-layout,
-  .filter-bar,
-  .metric-cards-grid,
-  .data-table,
-  .table-container,
-  .table-toolbar,
-  .modal-backdrop,
-  .modal,
-  #btn-print-receipt,
-  #btn-close-success,
-  .sidebar-backdrop {
+  /* Hide all elements that are direct children of body, except the print receipt container */
+  body > *:not(.print-receipt-container) {
     display: none !important;
   }
 
   @page {
-    size: 58mm auto;
+    size: auto;
     margin: 0;
   }
 
-  /* Reset layout structure for printing */
-  html, .app-shell, .app-main, .app-content {
+  html, body {
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;
-    color: #000 !important;
-    box-shadow: none !important;
-    border: none !important;
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    display: block !important;
-  }
-
-  body {
-    width: 58mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    width: 100% !important;
     background: #fff !important;
     color: #000 !important;
   }
@@ -1295,8 +1262,9 @@ input[type=number]::-webkit-inner-spin-button {
     display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    padding: 2mm !important;
+    padding: 4mm !important;
     margin: 0 !important;
+    box-sizing: border-box !important;
   }
 }
 
