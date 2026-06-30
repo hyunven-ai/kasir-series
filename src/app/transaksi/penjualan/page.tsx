@@ -19,6 +19,7 @@ export default function PenjualanPage() {
   const [searchError, setSearchError] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState('Umum');
+  const [catatan, setCatatan] = useState('');
   const [metode, setMetode] = useState<MetodePembayaran>('Tunai');
   const [bayar, setBayar] = useState('');
   const [checkoutModal, setCheckoutModal] = useState(false);
@@ -176,6 +177,7 @@ export default function PenjualanPage() {
           tanggal_penjualan: new Date().toISOString(),
           metode_pembayaran: metode,
           total_harga: total,
+          catatan: catatan || undefined,
           create_by: user?.username ?? 'kasir',
         },
         cart.map(item => ({
@@ -205,6 +207,7 @@ export default function PenjualanPage() {
       setCart([]);
       setBayar('');
       setCustomer('Umum');
+      setCatatan('');
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Gagal checkout');
     } finally {
@@ -415,6 +418,19 @@ export default function PenjualanPage() {
               />
             </div>
 
+            {/* Catatan */}
+            <div className="form-group mb-12">
+              <label className="form-label">Catatan</label>
+              <input
+                type="text"
+                className="form-control"
+                value={catatan}
+                onChange={e => setCatatan(e.target.value)}
+                placeholder="Catatan transaksi..."
+                id="pos-catatan"
+              />
+            </div>
+
             {/* Metode Pembayaran */}
             <div className="form-group mb-12">
               <label className="form-label">Metode Pembayaran</label>
@@ -550,6 +566,12 @@ export default function PenjualanPage() {
                   </>
                 )}
               </div>
+              {catatan && (
+                <div style={{ marginTop: 10, borderTop: '1px solid #eee', paddingTop: 8 }}>
+                  <div style={{ fontSize: 12, color: '#888' }}>Catatan</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>{catatan}</div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setCheckoutModal(false)}>Batal</button>

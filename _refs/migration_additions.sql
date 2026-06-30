@@ -97,3 +97,10 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- ============================================
+-- Tambahan kolom catatan pada tabel trs_penjualan_hdr
+-- ============================================
+ALTER TABLE public.trs_penjualan_hdr
+    ADD COLUMN IF NOT EXISTS catatan text;
+

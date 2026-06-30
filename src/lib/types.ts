@@ -211,6 +211,7 @@ export interface TrsPenjualanHdr {
   tanggal_penjualan: string;
   metode_pembayaran?: MetodePembayaran;
   total_harga?: number;
+  catatan?: string;
   create_time: string;
   create_by?: string;
   update_time?: string;

@@ -13,6 +13,8 @@ interface PrintReceiptProps {
     nama_barang: string;
     qty: number;
     harga_jual: number;
+    kategori?: string;
+    code?: string;
   }>;
   total: number;
   bayar?: number;
@@ -115,6 +117,11 @@ export default function PrintReceipt({
             <div className="receipt-item-title">
               {index + 1}. {item.nama_barang}
             </div>
+            {(item.kategori === 'HP' || item.kategori === 'HP Non Pajak') && item.code && (
+              <div style={{ fontSize: '9px', color: '#555', paddingLeft: '12px', marginTop: '-2px', marginBottom: '2px' }}>
+                IMEI: {item.code}
+              </div>
+            )}
             <div className="receipt-item-details">
               <span>{item.qty}x {item.harga_jual.toLocaleString('id-ID')}</span>
               <span>{(item.qty * item.harga_jual).toLocaleString('id-ID')}</span>

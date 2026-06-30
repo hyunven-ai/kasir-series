@@ -302,12 +302,20 @@ export default function DetailPenjualanPage() {
                 </div>
               </div>
             ) : (
-              <div className="form-grid" style={{ marginBottom: 16 }}>
-                <div><div style={{ fontSize: 12, color: '#888' }}>Pelanggan</div><strong>{selected.customer}</strong></div>
-                <div><div style={{ fontSize: 12, color: '#888' }}>Tanggal</div><strong>{formatDateTime(selected.tanggal_penjualan)}</strong></div>
-                <div><div style={{ fontSize: 12, color: '#888' }}>Metode Pembayaran</div><strong>{selected.metode_pembayaran ?? 'Tunai'}</strong></div>
-                <div><div style={{ fontSize: 12, color: '#888' }}>Kasir</div><strong>{selected.create_by}</strong></div>
-              </div>
+              <>
+                <div className="form-grid" style={{ marginBottom: 16 }}>
+                  <div><div style={{ fontSize: 12, color: '#888' }}>Pelanggan</div><strong>{selected.customer}</strong></div>
+                  <div><div style={{ fontSize: 12, color: '#888' }}>Tanggal</div><strong>{formatDateTime(selected.tanggal_penjualan)}</strong></div>
+                  <div><div style={{ fontSize: 12, color: '#888' }}>Metode Pembayaran</div><strong>{selected.metode_pembayaran ?? 'Tunai'}</strong></div>
+                  <div><div style={{ fontSize: 12, color: '#888' }}>Kasir</div><strong>{selected.create_by}</strong></div>
+                </div>
+                {selected.catatan && (
+                  <div style={{ marginBottom: 16, background: '#f9f9f9', padding: '10px 14px', borderRadius: 6, borderLeft: '3px solid #1565c0' }}>
+                    <div style={{ fontSize: 12, color: '#888' }}>Catatan Transaksi</div>
+                    <strong style={{ fontSize: 13, color: '#333' }}>{selected.catatan}</strong>
+                  </div>
+                )}
+              </>
             )}
             <table className="data-table">
               <thead>
@@ -345,6 +353,8 @@ export default function DetailPenjualanPage() {
             nama_barang: d.nama_barang,
             qty: d.qty,
             harga_jual: d.harga_jual,
+            kategori: d.kategori,
+            code: d.code,
           }))}
           total={selected.total_harga ?? 0}
         />
