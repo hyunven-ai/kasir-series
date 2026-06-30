@@ -159,7 +159,6 @@ export default function DetailPenjualanPage() {
   const columns = [
     { key: 'nomor_invoice', label: 'No. Invoice', render: (row: TrsPenjualanHdr) => <code style={{ fontSize: 11 }}>{row.nomor_invoice}</code> },
     { key: 'customer', label: 'Pelanggan', render: (row: TrsPenjualanHdr) => <strong>{row.customer}</strong> },
-    { key: 'tanggal_penjualan', label: 'Tanggal', render: (row: TrsPenjualanHdr) => formatDateTime(row.tanggal_penjualan) },
     {
       key: 'supplier_search',
       label: 'Supplier',
@@ -169,6 +168,7 @@ export default function DetailPenjualanPage() {
         </span>
       ),
     },
+    { key: 'tanggal_penjualan', label: 'Tanggal', render: (row: TrsPenjualanHdr) => formatDateTime(row.tanggal_penjualan) },
     {
       key: 'imei_search',
       label: 'IMEI',
