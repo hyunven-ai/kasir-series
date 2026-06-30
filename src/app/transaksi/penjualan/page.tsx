@@ -19,6 +19,13 @@ export default function PenjualanPage() {
   const [searchError, setSearchError] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState('Umum');
+  const [tanggalTransaksi, setTanggalTransaksi] = useState(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [catatan, setCatatan] = useState('');
   const [metode, setMetode] = useState<MetodePembayaran>('Tunai');
   const [bayar, setBayar] = useState('');
@@ -164,17 +171,25 @@ export default function PenjualanPage() {
     setCart(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const updatePrice = (idx: number, price: number) => {
+    setCart(prev => prev.map((c, i) => i === idx ? { ...c, harga_jual: price } : c));
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setProcessing(true);
     try {
       const invoiceNo = generateInvoiceNo();
+      const now = new Date();
+      const [year, month, day] = tanggalTransaksi.split('-').map(Number);
+      const transactionDateTime = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+
       await createPenjualan(
         {
           nomor_invoice: invoiceNo,
           customer,
           status: 1,
-          tanggal_penjualan: new Date().toISOString(),
+          tanggal_penjualan: transactionDateTime.toISOString(),
           metode_pembayaran: metode,
           total_harga: total,
           catatan: catatan || undefined,
@@ -196,7 +211,7 @@ export default function PenjualanPage() {
       setPrintData({
         invoiceNo,
         customer,
-        tanggalPenjualan: new Date().toISOString(),
+        tanggalPenjualan: transactionDateTime.toISOString(),
         metodePembayaran: metode,
         items: [...cart],
         total,
@@ -207,6 +222,11 @@ export default function PenjualanPage() {
       setCart([]);
       setBayar('');
       setCustomer('Umum');
+      const d = new Date();
+      const yr = d.getFullYear();
+      const mt = String(d.getMonth() + 1).padStart(2, '0');
+      const dy = String(d.getDate()).padStart(2, '0');
+      setTanggalTransaksi(`${yr}-${mt}-${dy}`);
       setCatatan('');
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Gagal checkout');
@@ -359,7 +379,19 @@ export default function PenjualanPage() {
                           {item.kategori === 'HP Non Pajak' ? 'Non Pajak' : item.kategori}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 500 }}>{formatRupiah(item.harga_jual)}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 12, color: '#888' }}>Rp</span>
+                          <div style={{ width: 100 }}>
+                            <NumericInput
+                              className="form-control form-control-sm"
+                              value={item.harga_jual}
+                              onChange={(val) => updatePrice(idx, val)}
+                              id={`pos-item-price-${idx}`}
+                            />
+                          </div>
+                        </div>
+                      </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <button
@@ -415,6 +447,18 @@ export default function PenjualanPage() {
                 onChange={e => setCustomer(e.target.value)}
                 placeholder="Nama pelanggan / Umum"
                 id="pos-customer"
+              />
+            </div>
+
+            {/* Tanggal Transaksi */}
+            <div className="form-group mb-12">
+              <label className="form-label">Tanggal Transaksi</label>
+              <input
+                type="date"
+                className="form-control"
+                value={tanggalTransaksi}
+                onChange={e => setTanggalTransaksi(e.target.value)}
+                id="pos-tanggal"
               />
             </div>
 

@@ -215,11 +215,15 @@ export async function getHpHdr() {
     .select(`*, ms_hp_dtl(*)`)
     .order('nama');
   if (error) throw error;
-  return (data as MsHpHdr[]).map(h => ({
-    ...h,
-    details: h.details || [],
-    stock_count: (h as unknown as { ms_hp_dtl?: MsHpDtl[] }).ms_hp_dtl?.filter(d => !d.status || d.status === 'tersedia').length ?? 0,
-  }));
+  return (data as MsHpHdr[]).map(h => {
+    const dtls = (h as unknown as { ms_hp_dtl?: MsHpDtl[] }).ms_hp_dtl ?? [];
+    return {
+      ...h,
+      details: h.details || [],
+      stock_count: dtls.filter(d => !d.status || d.status === 'tersedia').length ?? 0,
+      imei_list: dtls.map(d => d.imei).join(' '),
+    };
+  });
 }
 
 export async function createHpHdr(payload: Omit<MsHpHdr, 'id' | 'create_time' | 'stock_count' | 'details'>) {
@@ -297,7 +301,13 @@ export async function getHpNonPajakHdr() {
     .select(`*, ms_hp_dtl_non_pajak(*)`)
     .order('nama');
   if (error) throw error;
-  return data as MsHpHdrNonPajak[];
+  return (data as MsHpHdrNonPajak[]).map(h => {
+    const dtls = (h as unknown as { ms_hp_dtl_non_pajak?: MsHpDtlNonPajak[] }).ms_hp_dtl_non_pajak ?? [];
+    return {
+      ...h,
+      imei_list: dtls.map(d => d.imei).join(' '),
+    };
+  });
 }
 
 export async function createHpNonPajakHdr(payload: Omit<MsHpHdrNonPajak, 'id' | 'create_time' | 'stock_count' | 'details'>) {

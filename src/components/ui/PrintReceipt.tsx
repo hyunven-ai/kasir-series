@@ -118,7 +118,7 @@ export default function PrintReceipt({
               {index + 1}. {item.nama_barang}
             </div>
             {(item.kategori === 'HP' || item.kategori === 'HP Non Pajak') && item.code && (
-              <div style={{ fontSize: '9px', color: '#555', paddingLeft: '12px', marginTop: '-2px', marginBottom: '2px' }}>
+              <div style={{ fontSize: '10.5px', color: '#000', fontWeight: '600', paddingLeft: '12px', marginTop: '-1px', marginBottom: '1px' }}>
                 IMEI: {item.code}
               </div>
             )}

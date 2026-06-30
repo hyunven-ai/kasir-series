@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import NumericInput from '@/components/ui/NumericInput';
+import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import {
   getHpHdr, createHpHdr, updateHpHdr, deleteHpHdr,
   getHpDtl, createHpDtl, deleteHpDtl, updateHpDtl,
@@ -39,6 +40,19 @@ export default function HpPage() {
   const [editingDtl, setEditingDtl] = useState<MsHpDtl | null>(null);
   const [editDtlModal, setEditDtlModal] = useState(false);
   const [editDtlForm, setEditDtlForm] = useState({ imei: '', warna: '', harga_modal: '', harga_jual: '' });
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanningRowIdx, setScanningRowIdx] = useState<number | null>(null);
+
+  const handleScanSuccess = (code: string) => {
+    if (scanningRowIdx !== null) {
+      const updated = [...imeiRows];
+      updated[scanningRowIdx].imei = code;
+      setImeiRows(updated);
+      setScannerOpen(false);
+      setScanningRowIdx(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -261,7 +275,7 @@ export default function HpPage() {
         {/* Add IMEI form */}
         <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: '#444' }}>+ Tambah IMEI Baru</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px auto', gap: 10, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">IMEI & Warna</label>
               {imeiRows.map((row, index) => (
@@ -278,6 +292,15 @@ export default function HpPage() {
                     onKeyDown={e => e.key === 'Enter' && handleAddImei()}
                     style={{ flex: 1 }}
                   />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => { setScanningRowIdx(index); setScannerOpen(true); }}
+                    style={{ padding: '0 8px', height: 38 }}
+                    title="Scan IMEI"
+                  >
+                    📷
+                  </button>
                   <input
                     type="text" className="form-control"
                     placeholder="Warna"
@@ -311,17 +334,20 @@ export default function HpPage() {
                 + Tambah Baris IMEI
               </button>
             </div>
-            <div className="form-group" style={{ alignSelf: 'flex-start' }}>
-              <label className="form-label">Harga Modal</label>
-              <NumericInput className="form-control" placeholder="0" value={newHargaModal} onChange={(val, rawStr) => setNewHargaModal(rawStr)} id="input-modal-hp" />
+
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', borderTop: '1px solid #eee', paddingTop: 12 }}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">Harga Modal</label>
+                <NumericInput className="form-control" placeholder="0" value={newHargaModal} onChange={(val, rawStr) => setNewHargaModal(rawStr)} id="input-modal-hp" />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">Harga Jual</label>
+                <NumericInput className="form-control" placeholder="0" value={newHargaJual} onChange={(val, rawStr) => setNewHargaJual(rawStr)} id="input-jual-hp" />
+              </div>
+              <button className="btn btn-success" onClick={handleAddImei} disabled={dtlSaving} id="btn-add-imei" style={{ height: 38, padding: '0 20px' }}>
+                {dtlSaving ? '...' : '+ Add'}
+              </button>
             </div>
-            <div className="form-group" style={{ alignSelf: 'flex-start' }}>
-              <label className="form-label">Harga Jual</label>
-              <NumericInput className="form-control" placeholder="0" value={newHargaJual} onChange={(val, rawStr) => setNewHargaJual(rawStr)} id="input-jual-hp" />
-            </div>
-            <button className="btn btn-success" onClick={handleAddImei} disabled={dtlSaving} id="btn-add-imei" style={{ alignSelf: 'flex-start', marginTop: 20 }}>
-              {dtlSaving ? '...' : '+ Add'}
-            </button>
           </div>
         </div>
 
@@ -392,6 +418,12 @@ export default function HpPage() {
           </div>
         </form>
       </Modal>
+
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => { setScannerOpen(false); setScanningRowIdx(null); }}
+        onScanSuccess={handleScanSuccess}
+      />
     </div>
   );
 }

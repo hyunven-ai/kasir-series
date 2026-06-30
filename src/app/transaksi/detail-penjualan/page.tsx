@@ -88,9 +88,19 @@ export default function DetailPenjualanPage() {
       const mapped = result.map(row => {
         const dtls = (row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? [];
         const itemsString = dtls.map(d => d.nama_barang).join(', ');
+        const supplierString = dtls.map(d => d.supplier || '-').filter((v, i, a) => v !== '-' && a.indexOf(v) === i).join(', ') || '-';
+        const imeiString = dtls.map(d => d.code).filter(c => c).join(', ') || '-';
+        const brandString = dtls.map(d => {
+          const match = mList.find(m => d.nama_barang.toLowerCase().includes(m.nama.toLowerCase()));
+          return match ? match.nama : '';
+        }).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || '-';
+
         return {
           ...row,
           detail_barang_search: itemsString,
+          supplier_search: supplierString,
+          imei_search: imeiString,
+          brand_search: brandString,
         };
       });
       setData(mapped);
@@ -149,16 +159,43 @@ export default function DetailPenjualanPage() {
   const columns = [
     { key: 'nomor_invoice', label: 'No. Invoice', render: (row: TrsPenjualanHdr) => <code style={{ fontSize: 11 }}>{row.nomor_invoice}</code> },
     { key: 'customer', label: 'Pelanggan', render: (row: TrsPenjualanHdr) => <strong>{row.customer}</strong> },
+    { key: 'tanggal_penjualan', label: 'Tanggal', render: (row: TrsPenjualanHdr) => formatDateTime(row.tanggal_penjualan) },
+    {
+      key: 'supplier_search',
+      label: 'Supplier',
+      render: (row: TrsPenjualanHdr & { supplier_search?: string }) => (
+        <span style={{ fontSize: 12, color: '#555', display: 'block', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.supplier_search}>
+          {row.supplier_search || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'imei_search',
+      label: 'IMEI',
+      render: (row: TrsPenjualanHdr & { imei_search?: string }) => (
+        <span style={{ fontSize: 12, color: '#555', display: 'block', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.imei_search}>
+          {row.imei_search || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'brand_search',
+      label: 'Merek',
+      render: (row: TrsPenjualanHdr & { brand_search?: string }) => (
+        <span style={{ fontSize: 12, color: '#555', display: 'block', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.brand_search}>
+          {row.brand_search || '-'}
+        </span>
+      ),
+    },
     {
       key: 'detail_barang_search',
-      label: 'Daftar Barang',
+      label: 'Barang',
       render: (row: TrsPenjualanHdr & { detail_barang_search?: string }) => (
-        <span style={{ fontSize: 12, color: '#555', display: 'block', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.detail_barang_search}>
+        <span style={{ fontSize: 12, color: '#555', display: 'block', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.detail_barang_search}>
           {row.detail_barang_search || '-'}
         </span>
       ),
     },
-    { key: 'tanggal_penjualan', label: 'Tanggal', render: (row: TrsPenjualanHdr) => formatDateTime(row.tanggal_penjualan) },
     {
       key: 'metode_pembayaran', label: 'Metode',
       render: (row: TrsPenjualanHdr) => (
@@ -226,7 +263,7 @@ export default function DetailPenjualanPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="metric-cards-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 20 }}>
+      <div className="metric-cards-grid" style={{ gridTemplateColumns: user?.role === 'kasir' ? '1fr 1fr' : '1fr 1fr 1fr', marginBottom: 20 }}>
         <div className="metric-card metric-card-blue">
           <div className="metric-card-label">Jumlah Transaksi</div>
           <div className="metric-card-value" style={{ fontSize: 28 }}>{filteredData.length}</div>
@@ -235,10 +272,12 @@ export default function DetailPenjualanPage() {
           <div className="metric-card-label">Total Penjualan</div>
           <div className="metric-card-value">{formatRupiah(totalPenjualan)}</div>
         </div>
-        <div className="metric-card metric-card-teal">
-          <div className="metric-card-label">Total Profit</div>
-          <div className="metric-card-value">{formatRupiah(totalProfit)}</div>
-        </div>
+        {user?.role !== 'kasir' && (
+          <div className="metric-card metric-card-teal">
+            <div className="metric-card-label">Total Profit</div>
+            <div className="metric-card-value">{formatRupiah(totalProfit)}</div>
+          </div>
+        )}
       </div>
 
       <DataTable
