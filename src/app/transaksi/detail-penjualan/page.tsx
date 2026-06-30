@@ -127,7 +127,9 @@ export default function DetailPenjualanPage() {
       });
       setData(mapped);
     }
-    catch { /* no-op */ }
+    catch (err) {
+      console.error("Error loading sales details:", err);
+    }
     finally { setLoading(false); }
   };
 
@@ -157,6 +159,18 @@ export default function DetailPenjualanPage() {
   const filteredData = data.filter(row => {
     const dtls = (row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? [];
     
+    // Precise local timezone date comparison
+    if (row.tanggal_penjualan) {
+      const localDate = new Date(row.tanggal_penjualan);
+      const y = localDate.getFullYear();
+      const m = String(localDate.getMonth() + 1).padStart(2, '0');
+      const d = String(localDate.getDate()).padStart(2, '0');
+      const rowLocalDateStr = `${y}-${m}-${d}`;
+
+      if (from && rowLocalDateStr < from) return false;
+      if (to && rowLocalDateStr > to) return false;
+    }
+
     // Kategori Filter
     if (selectedKategori) {
       const hasKategori = dtls.some(d => d.kategori === selectedKategori);

@@ -453,8 +453,18 @@ export async function getPenjualan(from?: string, to?: string) {
     .select(`*, trs_penjualan_dtl(*)`)
     .order('tanggal_penjualan', { ascending: false });
 
-  if (from) query = query.gte('tanggal_penjualan', from);
-  if (to) query = query.lte('tanggal_penjualan', to + 'T23:59:59');
+  if (from) {
+    const d = new Date(from);
+    d.setDate(d.getDate() - 1);
+    const marginFrom = d.toISOString().split('T')[0];
+    query = query.gte('tanggal_penjualan', marginFrom + 'T00:00:00Z');
+  }
+  if (to) {
+    const d = new Date(to);
+    d.setDate(d.getDate() + 1);
+    const marginTo = d.toISOString().split('T')[0];
+    query = query.lte('tanggal_penjualan', marginTo + 'T23:59:59Z');
+  }
 
   const { data, error } = await query;
   if (error) throw error;
