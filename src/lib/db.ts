@@ -660,7 +660,21 @@ export async function getDashboardStats(from?: string, to?: string): Promise<Das
   const total_produk = hpStock + hpnpStock + aksStock + cctvStock + kuotaStock;
 
   // Total aset = nilai modal stok yang tersedia
-  const total_aset = total_pengeluaran; // simplified
+  const [hpModal, hpnpModal, aksModal, cctvModal, kuotaModal] = await Promise.all([
+    supabase.from('ms_hp_dtl').select('harga_modal').or('status.is.null,status.eq.tersedia'),
+    supabase.from('ms_hp_dtl_non_pajak').select('harga_modal').or('status.is.null,status.eq.tersedia'),
+    supabase.from('ms_aksesoris').select('harga_modal, qty').gt('qty', 0),
+    supabase.from('ms_cctv_dtl').select('harga_modal').or('status.is.null,status.eq.tersedia'),
+    supabase.from('ms_kuota').select('harga_modal, qty').gt('qty', 0),
+  ]);
+
+  const hpModalSum = (hpModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0), 0);
+  const hpnpModalSum = (hpnpModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0), 0);
+  const aksModalSum = (aksModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0) * (r.qty as number ?? 0), 0);
+  const cctvModalSum = (cctvModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0), 0);
+  const kuotaModalSum = (kuotaModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0) * (r.qty as number ?? 0), 0);
+
+  const total_aset = hpModalSum + hpnpModalSum + aksModalSum + cctvModalSum + kuotaModalSum;
 
   return {
     total_pemasukan,
