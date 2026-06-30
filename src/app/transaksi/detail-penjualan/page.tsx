@@ -259,6 +259,36 @@ export default function DetailPenjualanPage() {
     },
   ];
 
+  const renderTableFooter = (sortedData: any[]) => {
+    const totalModalSum = sortedData.reduce((s, row) => s + (row.total_modal ?? 0), 0);
+    const totalJualSum = sortedData.reduce((s, row) => s + (row.total_harga ?? 0), 0);
+    const totalProfitSum = sortedData.reduce((s, row) => s + (row.total_profit ?? 0), 0);
+    const totalSum = sortedData.reduce((s, row) => s + (row.total_harga ?? 0), 0);
+
+    const activeCols = columns.filter(col => col.key === 'actions' || (visibleColumns[col.key] ?? true));
+
+    return (
+      <tr style={{ fontWeight: 700, background: '#f8f9fa', borderTop: '2px solid #ccc' }}>
+        <td style={{ color: '#222' }}>Total</td>
+        {activeCols.map(col => {
+          if (col.key === 'total_modal') {
+            return <td key={col.key} style={{ color: '#222' }}>{formatRupiah(totalModalSum)}</td>;
+          }
+          if (col.key === 'total_jual') {
+            return <td key={col.key} style={{ color: '#222' }}>{formatRupiah(totalJualSum)}</td>;
+          }
+          if (col.key === 'total_profit') {
+            return <td key={col.key} style={{ color: '#2e7d32' }}>{formatRupiah(totalProfitSum)}</td>;
+          }
+          if (col.key === 'total') {
+            return <td key={col.key} style={{ color: '#1565c0' }}>{formatRupiah(totalSum)}</td>;
+          }
+          return <td key={col.key}></td>;
+        })}
+      </tr>
+    );
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -323,6 +353,7 @@ export default function DetailPenjualanPage() {
         columns={columns.filter(col => col.key === 'actions' || (visibleColumns[col.key] ?? true))}
         data={filteredData}
         loading={loading}
+        renderFooter={renderTableFooter}
         extraActions={
           <div style={{ position: 'relative' }}>
             <button 

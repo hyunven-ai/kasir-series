@@ -18,6 +18,7 @@ interface DataTableProps<T> {
   onAdd?: () => void;
   addLabel?: string;
   extraActions?: React.ReactNode;
+  renderFooter?: (data: T[]) => React.ReactNode;
 }
 
 export default function DataTable<T extends object>({
@@ -29,6 +30,7 @@ export default function DataTable<T extends object>({
   onAdd,
   addLabel = 'Tambah',
   extraActions,
+  renderFooter,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -202,6 +204,11 @@ export default function DataTable<T extends object>({
               ))
             )}
           </tbody>
+          {renderFooter && (
+            <tfoot>
+              {renderFooter(paginated)}
+            </tfoot>
+          )}
         </table>
       </div>
 
