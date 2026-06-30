@@ -625,10 +625,10 @@ export async function getDashboardStats(from?: string, to?: string): Promise<Das
 
   // Count total products
   const [hp, hpnp, aksesoris, cctv, kuota] = await Promise.all([
-    supabase.from('ms_hp_dtl').select('id', { count: 'exact' }).eq('status', 'tersedia'),
-    supabase.from('ms_hp_dtl_non_pajak').select('id', { count: 'exact' }).eq('status', 'tersedia'),
+    supabase.from('ms_hp_dtl').select('id', { count: 'exact' }).or('status.is.null,status.eq.tersedia'),
+    supabase.from('ms_hp_dtl_non_pajak').select('id', { count: 'exact' }).or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_aksesoris').select('qty').gt('qty', 0),
-    supabase.from('ms_cctv_dtl').select('id', { count: 'exact' }).eq('status', 'tersedia'),
+    supabase.from('ms_cctv_dtl').select('id', { count: 'exact' }).or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_kuota').select('qty').gt('qty', 0),
   ]);
 

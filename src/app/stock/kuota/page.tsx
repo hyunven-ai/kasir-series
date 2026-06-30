@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import NumericInput from '@/components/ui/NumericInput';
 import { getKuota, createKuota, updateKuota, deleteKuota, getSuppliers, getOperators } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, formatDate } from '@/lib/utils';
@@ -149,11 +150,11 @@ export default function KuotaPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Harga Modal *</label>
-              <input type="number" className="form-control" placeholder="0" min="0" value={form.harga_modal} onChange={e => setForm(f => ({ ...f, harga_modal: e.target.value }))} required id="kuo-modal" />
+              <NumericInput className="form-control" placeholder="0" value={form.harga_modal} onChange={(val, rawStr) => setForm(f => ({ ...f, harga_modal: rawStr }))} required id="kuo-modal" />
             </div>
             <div className="form-group">
               <label className="form-label">Harga Jual *</label>
-              <input type="number" className="form-control" placeholder="0" min="0" value={form.harga_jual} onChange={e => setForm(f => ({ ...f, harga_jual: e.target.value }))} required id="kuo-jual" />
+              <NumericInput className="form-control" placeholder="0" value={form.harga_jual} onChange={(val, rawStr) => setForm(f => ({ ...f, harga_jual: rawStr }))} required id="kuo-jual" />
             </div>
           </div>
         </form>

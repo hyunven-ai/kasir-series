@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import NumericInput from '@/components/ui/NumericInput';
 import {
   getCctvHdr, createCctvHdr, updateCctvHdr,
   getCctvDtl, createCctvDtl, deleteCctvDtl, updateCctvDtl,
@@ -286,11 +287,11 @@ export default function CctvPage() {
             </div>
             <div className="form-group" style={{ alignSelf: 'flex-start' }}>
               <label className="form-label">Harga Modal</label>
-              <input type="number" className="form-control" placeholder="0" value={newHargaModal} onChange={e => setNewHargaModal(e.target.value)} id="input-modal-cctv" />
+              <NumericInput className="form-control" placeholder="0" value={newHargaModal} onChange={(val, rawStr) => setNewHargaModal(rawStr)} id="input-modal-cctv" />
             </div>
             <div className="form-group" style={{ alignSelf: 'flex-start' }}>
               <label className="form-label">Harga Jual</label>
-              <input type="number" className="form-control" placeholder="0" value={newHargaJual} onChange={e => setNewHargaJual(e.target.value)} id="input-jual-cctv" />
+              <NumericInput className="form-control" placeholder="0" value={newHargaJual} onChange={(val, rawStr) => setNewHargaJual(rawStr)} id="input-jual-cctv" />
             </div>
             <button className="btn btn-success" onClick={handleAddSn} disabled={dtlSaving} id="btn-add-sn" style={{ alignSelf: 'flex-start', marginTop: 20 }}>
               {dtlSaving ? '...' : '+ Add'}
@@ -356,11 +357,11 @@ export default function CctvPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Harga Modal *</label>
-              <input type="number" className="form-control" value={editDtlForm.harga_modal} onChange={e => setEditDtlForm(f => ({ ...f, harga_modal: e.target.value }))} required id="edit-dtl-modal-cctv" />
+              <NumericInput className="form-control" value={editDtlForm.harga_modal} onChange={(val, rawStr) => setEditDtlForm(f => ({ ...f, harga_modal: rawStr }))} required id="edit-dtl-modal-cctv" />
             </div>
             <div className="form-group">
               <label className="form-label">Harga Jual *</label>
-              <input type="number" className="form-control" value={editDtlForm.harga_jual} onChange={e => setEditDtlForm(f => ({ ...f, harga_jual: e.target.value }))} required id="edit-dtl-jual-cctv" />
+              <NumericInput className="form-control" value={editDtlForm.harga_jual} onChange={(val, rawStr) => setEditDtlForm(f => ({ ...f, harga_jual: rawStr }))} required id="edit-dtl-jual-cctv" />
             </div>
           </div>
         </form>

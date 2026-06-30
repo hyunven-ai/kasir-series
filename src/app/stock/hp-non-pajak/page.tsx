@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import NumericInput from '@/components/ui/NumericInput';
 import {
   getHpNonPajakHdr, createHpNonPajakHdr, updateHpNonPajakHdr,
   getHpNonPajakDtl, createHpNonPajakDtl, deleteHpNonPajakDtl, updateHpNonPajakDtl,
@@ -288,11 +289,11 @@ export default function HpNonPajakPage() {
             </div>
             <div className="form-group" style={{ alignSelf: 'flex-start' }}>
               <label className="form-label">Harga Modal</label>
-              <input type="number" className="form-control" placeholder="0" value={newHargaModal} onChange={e => setNewHargaModal(e.target.value)} id="input-modal-np" />
+              <NumericInput className="form-control" placeholder="0" value={newHargaModal} onChange={(val, rawStr) => setNewHargaModal(rawStr)} id="input-modal-np" />
             </div>
             <div className="form-group" style={{ alignSelf: 'flex-start' }}>
               <label className="form-label">Harga Jual</label>
-              <input type="number" className="form-control" placeholder="0" value={newHargaJual} onChange={e => setNewHargaJual(e.target.value)} id="input-jual-np" />
+              <NumericInput className="form-control" placeholder="0" value={newHargaJual} onChange={(val, rawStr) => setNewHargaJual(rawStr)} id="input-jual-np" />
             </div>
             <button className="btn btn-success" onClick={handleAddImei} disabled={dtlSaving} id="btn-add-imei-np" style={{ alignSelf: 'flex-start', marginTop: 20 }}>
               {dtlSaving ? '...' : '+ Add'}
@@ -358,11 +359,11 @@ export default function HpNonPajakPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Harga Modal *</label>
-              <input type="number" className="form-control" value={editDtlForm.harga_modal} onChange={e => setEditDtlForm(f => ({ ...f, harga_modal: e.target.value }))} required id="edit-dtl-modal-np" />
+              <NumericInput className="form-control" value={editDtlForm.harga_modal} onChange={(val, rawStr) => setEditDtlForm(f => ({ ...f, harga_modal: rawStr }))} required id="edit-dtl-modal-np" />
             </div>
             <div className="form-group">
               <label className="form-label">Harga Jual *</label>
-              <input type="number" className="form-control" value={editDtlForm.harga_jual} onChange={e => setEditDtlForm(f => ({ ...f, harga_jual: e.target.value }))} required id="edit-dtl-jual-np" />
+              <NumericInput className="form-control" value={editDtlForm.harga_jual} onChange={(val, rawStr) => setEditDtlForm(f => ({ ...f, harga_jual: rawStr }))} required id="edit-dtl-jual-np" />
             </div>
           </div>
         </form>

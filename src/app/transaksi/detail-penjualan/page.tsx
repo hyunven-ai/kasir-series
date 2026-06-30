@@ -106,6 +106,7 @@ export default function DetailPenjualanPage() {
     setTo(tempTo);
     setSelectedKategori(tempKategori);
     setSelectedMerk(tempMerk);
+    load(tempFrom, tempTo);
   };
   const handleReset = () => {
     const f = daysAgo(30), t = today();

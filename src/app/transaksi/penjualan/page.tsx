@@ -7,6 +7,7 @@ import { formatRupiah, generateInvoiceNo, today } from '@/lib/utils';
 import type { CartItem, MetodePembayaran } from '@/lib/types';
 import PrintReceipt from '@/components/ui/PrintReceipt';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
+import NumericInput from '@/components/ui/NumericInput';
 
 const METODE_OPTIONS: MetodePembayaran[] = ['Tunai', 'Debit', 'Transfer', 'QRIS'];
 
@@ -463,12 +464,11 @@ export default function PenjualanPage() {
               <>
                 <div className="form-group mt-12">
                   <label className="form-label">Uang Dibayar</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     className="form-control"
                     placeholder="0"
                     value={bayar}
-                    onChange={e => setBayar(e.target.value)}
+                    onChange={(val, rawStr) => setBayar(rawStr)}
                     id="pos-bayar"
                   />
                 </div>

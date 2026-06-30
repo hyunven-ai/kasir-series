@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
+import NumericInput from '@/components/ui/NumericInput';
 import { getPembelian, createPembelian, getSuppliers, getAksesoris, getKuota } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, formatDateTime, generateInvoiceNo, today } from '@/lib/utils';
@@ -227,10 +228,10 @@ export default function PembelianPage() {
                     <input type="number" className="form-control" min="1" value={item.qty} onChange={e => updateItem(i, 'qty', parseInt(e.target.value))} id={`po-item-qty-${i}`} />
                   </td>
                   <td>
-                    <input type="number" className="form-control" min="0" value={item.harga_modal} onChange={e => updateItem(i, 'harga_modal', parseInt(e.target.value))} id={`po-item-modal-${i}`} />
+                    <NumericInput className="form-control" value={item.harga_modal} onChange={val => updateItem(i, 'harga_modal', val)} id={`po-item-modal-${i}`} />
                   </td>
                   <td>
-                    <input type="number" className="form-control" min="0" value={item.harga_jual} onChange={e => updateItem(i, 'harga_jual', parseInt(e.target.value))} id={`po-item-jual-${i}`} />
+                    <NumericInput className="form-control" value={item.harga_jual} onChange={val => updateItem(i, 'harga_jual', val)} id={`po-item-jual-${i}`} />
                   </td>
                   <td>
                     <button className="btn btn-danger btn-sm btn-icon" onClick={() => removeItem(i)} id={`btn-del-po-item-${i}`}>✕</button>
