@@ -34,6 +34,20 @@ export default function DetailPenjualanPage() {
   const [editKasir, setEditKasir] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    nomor_invoice: true,
+    customer: true,
+    supplier_search: true,
+    tanggal_penjualan: true,
+    imei_search: true,
+    brand_search: true,
+    detail_barang_search: true,
+    metode_pembayaran: true,
+    total: true,
+    create_by: true,
+  });
+  const [showColDropdown, setShowColDropdown] = useState(false);
+
   const startEdit = (row: TrsPenjualanHdr) => {
     setEditCustomer(row.customer);
     setEditMetode(row.metode_pembayaran ?? 'Tunai');
@@ -281,9 +295,72 @@ export default function DetailPenjualanPage() {
       </div>
 
       <DataTable
-        columns={columns}
+        columns={columns.filter(col => col.key === 'actions' || (visibleColumns[col.key] ?? true))}
         data={filteredData}
         loading={loading}
+        extraActions={
+          <div style={{ position: 'relative' }}>
+            <button 
+              className="btn btn-outline btn-sm" 
+              onClick={() => setShowColDropdown(!showColDropdown)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 34 }}
+              id="btn-toggle-columns"
+            >
+              ⚙️ Kolom
+            </button>
+            {showColDropdown && (
+              <>
+                <div 
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
+                  onClick={() => setShowColDropdown(false)} 
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  background: '#fff',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  padding: 12,
+                  zIndex: 100,
+                  minWidth: 160,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  marginTop: 6
+                }}>
+                  <div style={{ fontWeight: 600, fontSize: 11, color: '#666', borderBottom: '1px solid #eee', paddingBottom: 6, marginBottom: 2 }}>
+                    Tampilkan Kolom
+                  </div>
+                  {Object.entries({
+                    nomor_invoice: 'No. Invoice',
+                    customer: 'Pelanggan',
+                    supplier_search: 'Supplier',
+                    tanggal_penjualan: 'Tanggal',
+                    imei_search: 'IMEI',
+                    brand_search: 'Merek',
+                    detail_barang_search: 'Barang',
+                    metode_pembayaran: 'Metode',
+                    total: 'Total',
+                    create_by: 'Kasir'
+                  }).map(([key, label]) => (
+                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', userSelect: 'none', margin: 0, fontWeight: 500 }}>
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[key] ?? true}
+                        onChange={e => setVisibleColumns(prev => ({ ...prev, [key]: e.target.checked }))}
+                        style={{ cursor: 'pointer' }}
+                        id={`chk-col-${key}`}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        }
       />
 
       {/* Detail Modal */}
