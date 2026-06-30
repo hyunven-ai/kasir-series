@@ -44,6 +44,9 @@ export default function DetailPenjualanPage() {
     detail_barang_search: true,
     metode_pembayaran: true,
     total: true,
+    total_modal: true,
+    total_jual: true,
+    total_profit: true,
     create_by: true,
   });
   const [showColDropdown, setShowColDropdown] = useState(false);
@@ -109,12 +112,17 @@ export default function DetailPenjualanPage() {
           return match ? match.nama : '';
         }).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || '-';
 
+        const totalModal = dtls.reduce((s, item) => s + (item.harga_modal * item.qty), 0);
+        const totalProfit = dtls.reduce((s, item) => s + (item.harga_jual - item.harga_modal) * item.qty, 0);
+
         return {
           ...row,
           detail_barang_search: itemsString,
           supplier_search: supplierString,
           imei_search: imeiString,
           brand_search: brandString,
+          total_modal: totalModal,
+          total_profit: totalProfit,
         };
       });
       setData(mapped);
@@ -218,6 +226,23 @@ export default function DetailPenjualanPage() {
         </span>
       ),
     },
+    ...(user?.role === 'super_admin' ? [
+      {
+        key: 'total_modal',
+        label: 'Harga Modal',
+        render: (row: any) => <span>{formatRupiah(row.total_modal ?? 0)}</span>,
+      },
+      {
+        key: 'total_jual',
+        label: 'Harga Jual',
+        render: (row: any) => <span>{formatRupiah(row.total_harga ?? 0)}</span>,
+      },
+      {
+        key: 'total_profit',
+        label: 'Keuntungan',
+        render: (row: any) => <span style={{ color: '#2e7d32', fontWeight: 600 }}>{formatRupiah(row.total_profit ?? 0)}</span>,
+      },
+    ] : []),
     {
       key: 'total', label: 'Total',
       render: (row: TrsPenjualanHdr) => <span style={{ fontWeight: 700, color: '#1565c0' }}>{formatRupiah(row.total_harga ?? 0)}</span>,
@@ -342,6 +367,11 @@ export default function DetailPenjualanPage() {
                     brand_search: 'Merek',
                     detail_barang_search: 'Barang',
                     metode_pembayaran: 'Metode',
+                    ...(user?.role === 'super_admin' ? {
+                      total_modal: 'Harga Modal',
+                      total_jual: 'Harga Jual',
+                      total_profit: 'Keuntungan',
+                    } : {}),
                     total: 'Total',
                     create_by: 'Kasir'
                   }).map(([key, label]) => (
