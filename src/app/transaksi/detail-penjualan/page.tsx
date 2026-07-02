@@ -16,9 +16,9 @@ export default function DetailPenjualanPage() {
   const [data, setData] = useState<(TrsPenjualanHdr & { detail_barang_search?: string })[]>([]);
   const [merks, setMerks] = useState<MsMerk[]>([]);
   const [loading, setLoading] = useState(true);
-  const [from, setFrom] = useState(daysAgo(30));
+  const [from, setFrom] = useState(today());
   const [to, setTo] = useState(today());
-  const [tempFrom, setTempFrom] = useState(daysAgo(30));
+  const [tempFrom, setTempFrom] = useState(today());
   const [tempTo, setTempTo] = useState(today());
   const [tempKategori, setTempKategori] = useState('');
   const [tempMerk, setTempMerk] = useState('');
@@ -143,7 +143,7 @@ export default function DetailPenjualanPage() {
     load(tempFrom, tempTo);
   };
   const handleReset = () => {
-    const f = daysAgo(30), t = today();
+    const f = today(), t = today();
     setTempFrom(f); setTempTo(t); setFrom(f); setTo(t);
     setTempKategori(''); setTempMerk('');
     setSelectedKategori(''); setSelectedMerk('');
