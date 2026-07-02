@@ -116,12 +116,14 @@ export default function BarcodeScannerModal({ isOpen, onClose, onScanSuccess }: 
     }
   };
 
-  const handleClose = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
+  const handleClose = () => {
+    if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
+        if (scannerRef.current.isScanning) {
+          scannerRef.current.stop().catch(e => console.error('Error stopping scanner on close:', e));
+        }
       } catch (e) {
-        console.error(e);
+        console.error('Error checking isScanning on close:', e);
       }
     }
     onClose();

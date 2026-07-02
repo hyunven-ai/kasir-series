@@ -115,7 +115,7 @@ export default function PrintReceipt({
         {items.map((item, index) => (
           <div key={index} className="receipt-item-row">
             <div className="receipt-item-title">
-              {index + 1}. {item.nama_barang}
+              {index + 1}. {item.nama_barang.replace(/\s*\(Non Pajak\)/gi, '')}
             </div>
             {(item.kategori === 'HP' || item.kategori === 'HP Non Pajak') && item.code && (
               <div style={{ fontSize: '11.5px', color: '#000', fontWeight: 'bold', paddingLeft: '12px', marginTop: '-1px', marginBottom: '1px' }}>
