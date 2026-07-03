@@ -111,7 +111,7 @@ export default function AksesorisPage() {
 
       {/* Filter panel */}
       <div className="filter-bar">
-        <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        <div className="form-grid w-full" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Nama Supplier</label>
             <select

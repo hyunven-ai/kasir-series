@@ -7,6 +7,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { getCurrentUser, logout } from '@/lib/auth';
 import { AuthUser } from '@/lib/types';
+import { Home, ShoppingCart, Package, Menu as MenuIcon } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -101,19 +102,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Native Mobile App Style Bottom Navigation */}
         <nav className="mobile-bottom-nav">
           <Link href="/dashboard" className={`mobile-bottom-item${pathname === '/dashboard' ? ' active' : ''}`}>
-            <span className="icon">🏠</span>
+            <Home size={20} className="icon-svg" />
             <span className="label">Home</span>
           </Link>
           <Link href="/transaksi/penjualan" className={`mobile-bottom-item${pathname === '/transaksi/penjualan' ? ' active' : ''}`}>
-            <span className="icon">🛒</span>
+            <ShoppingCart size={20} className="icon-svg" />
             <span className="label">Kasir</span>
           </Link>
           <Link href="/stock/hp" className={`mobile-bottom-item${pathname?.startsWith('/stock') ? ' active' : ''}`}>
-            <span className="icon">📦</span>
+            <Package size={20} className="icon-svg" />
             <span className="label">Stock</span>
           </Link>
           <button onClick={() => setMobileOpen(true)} className="mobile-bottom-item">
-            <span className="icon">🍔</span>
+            <MenuIcon size={20} className="icon-svg" />
             <span className="label">Menu</span>
           </button>
         </nav>
