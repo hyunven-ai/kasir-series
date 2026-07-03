@@ -310,7 +310,7 @@ export default function DetailPenjualanPage() {
       </div>
 
       {/* Filter */}
-      <div className="filter-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', background: '#fff', padding: 16, borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 20 }}>
+      <div className="filter-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
         <div className="form-group" style={{ minWidth: 140, flex: 1 }}>
           <label className="form-label">Dari</label>
           <input type="date" className="form-control" value={tempFrom} onChange={e => setTempFrom(e.target.value)} id="dtl-from" />
@@ -388,10 +388,10 @@ export default function DetailPenjualanPage() {
                   position: 'absolute',
                   top: '100%',
                   right: 0,
-                  background: '#fff',
-                  border: '1px solid #e0e0e0',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-light)',
                   borderRadius: 6,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  boxShadow: 'var(--shadow-md)',
                   padding: 12,
                   zIndex: 100,
                   minWidth: 160,
@@ -400,7 +400,7 @@ export default function DetailPenjualanPage() {
                   gap: 8,
                   marginTop: 6
                 }}>
-                  <div style={{ fontWeight: 600, fontSize: 11, color: '#666', borderBottom: '1px solid #eee', paddingBottom: 6, marginBottom: 2 }}>
+                  <div style={{ fontWeight: 600, fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)', paddingBottom: 6, marginBottom: 2 }}>
                     Tampilkan Kolom
                   </div>
                   {Object.entries({

@@ -49,7 +49,7 @@ export default function LogAktivitasPage() {
     {
       key: 'user', label: 'User',
       render: (row: LogAktivitas) => (
-        <code style={{ fontSize: 12, background: '#f0f4ff', padding: '2px 6px', borderRadius: 4 }}>@{row.user}</code>
+        <code style={{ fontSize: 12 }}>@{row.user}</code>
       ),
     },
     {

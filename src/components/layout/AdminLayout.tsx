@@ -31,6 +31,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setMobileOpen(false);
   }, [pathname]);
 
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const isDark = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    setIsDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const handleToggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', next);
+      return next;
+    });
+  };
+
   const handleLogout = () => {
     logout();
     router.push('/login');
@@ -60,6 +82,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className={`app-main${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
         <Header
           user={user}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={handleToggleDarkMode}
           onToggleSidebar={() => {
             // If screen is mobile (checked via CSS media queries), toggle mobileOpen. Otherwise toggle collapsed.
             if (window.innerWidth <= 768) {

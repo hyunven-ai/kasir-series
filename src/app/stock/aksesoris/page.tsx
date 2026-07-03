@@ -110,17 +110,10 @@ export default function AksesorisPage() {
       </div>
 
       {/* Filter panel */}
-      <div className="filter-bar" style={{
-        background: '#fff',
-        padding: '20px',
-        borderRadius: '8px',
-        border: '1px solid #eee',
-        marginBottom: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-      }}>
+      <div className="filter-bar">
         <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Nama Supplier</label>
+            <label className="form-label">Nama Supplier</label>
             <select
               className="form-control"
               value={filterSupplier}
@@ -133,7 +126,7 @@ export default function AksesorisPage() {
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Merk</label>
+            <label className="form-label">Merk</label>
             <select
               className="form-control"
               value={filterMerk}
@@ -146,7 +139,7 @@ export default function AksesorisPage() {
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Barcode</label>
+            <label className="form-label">Barcode</label>
             <input
               type="text"
               className="form-control"
@@ -158,7 +151,7 @@ export default function AksesorisPage() {
           </div>
 
           <div className="form-group col-span-2" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Nama Aksesoris</label>
+            <label className="form-label">Nama Aksesoris</label>
             <input
               type="text"
               className="form-control"
