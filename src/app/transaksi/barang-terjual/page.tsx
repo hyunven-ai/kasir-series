@@ -30,6 +30,22 @@ export default function BarangTerjualPage() {
   const [search, setSearch] = useState('');
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    tanggal_penjualan: true,
+    nomor_invoice: true,
+    customer: true,
+    kategori: true,
+    code: true,
+    nama_barang: true,
+    qty: true,
+    harga_modal: true,
+    harga_jual: true,
+    total_jual: true,
+    profit: true,
+    kasir: true,
+  });
+  const [showColDropdown, setShowColDropdown] = useState(false);
+
   const load = async (f: string, t: string) => {
     setLoading(true);
     try {
@@ -267,15 +283,32 @@ export default function BarangTerjualPage() {
     const totalJualSum = sortedData.reduce((s, row) => s + row.total_jual, 0);
     const totalProfitSum = sortedData.reduce((s, row) => s + row.profit, 0);
 
+    const activeCols = columns.filter(col => col.key === 'actions' || (visibleColumns[col.key] ?? true));
+    const firstColKey = activeCols[0]?.key;
+
     return (
       <tr style={{ fontWeight: 700, background: '#f8f9fa', borderTop: '2px solid #ccc' }}>
-        <td colSpan={6} style={{ color: '#222', textAlign: 'right', paddingRight: '15px' }}>Total</td>
-        <td style={{ color: '#222' }}>{totalQty}</td>
-        <td style={{ color: '#222' }}>{formatRupiah(totalModalSum)}</td>
-        <td style={{ color: '#222' }}>{formatRupiah(totalJualSum)}</td>
-        <td style={{ color: '#1565c0' }}>{formatRupiah(totalJualSum)}</td>
-        <td style={{ color: '#2e7d32' }}>{formatRupiah(totalProfitSum)}</td>
-        <td colSpan={2}></td>
+        {activeCols.map((col) => {
+          if (col.key === firstColKey) {
+            return <td key={col.key} style={{ color: '#222' }}>Total</td>;
+          }
+          if (col.key === 'qty') {
+            return <td key={col.key} style={{ color: '#222' }}>{totalQty}</td>;
+          }
+          if (col.key === 'harga_modal') {
+            return <td key={col.key} style={{ color: '#222' }}>{formatRupiah(totalModalSum)}</td>;
+          }
+          if (col.key === 'harga_jual') {
+            return <td key={col.key} style={{ color: '#222' }}>{formatRupiah(totalJualSum)}</td>;
+          }
+          if (col.key === 'total_jual') {
+            return <td key={col.key} style={{ color: '#1565c0' }}>{formatRupiah(totalJualSum)}</td>;
+          }
+          if (col.key === 'profit') {
+            return <td key={col.key} style={{ color: '#2e7d32' }}>{formatRupiah(totalProfitSum)}</td>;
+          }
+          return <td key={col.key}></td>;
+        })}
       </tr>
     );
   };
@@ -333,9 +366,72 @@ export default function BarangTerjualPage() {
       <div className="card">
         <DataTable
           data={filteredData}
-          columns={columns}
+          columns={columns.filter(col => col.key === 'actions' || (visibleColumns[col.key] ?? true))}
           loading={loading}
           renderFooter={renderTableFooter}
+          extraActions={
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="btn btn-outline btn-sm" 
+                onClick={() => setShowColDropdown(!showColDropdown)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 34 }}
+                id="btn-toggle-columns"
+              >
+                ⚙️ Kolom
+              </button>
+              {showColDropdown && (
+                <>
+                  <div 
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
+                    onClick={() => setShowColDropdown(false)} 
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    background: '#fff',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 6,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    padding: 12,
+                    zIndex: 100,
+                    minWidth: 160,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    marginTop: 6
+                  }}>
+                    <div style={{ fontWeight: 600, fontSize: 11, color: '#666', borderBottom: '1px solid #eee', paddingBottom: 6, marginBottom: 2 }}>
+                      Tampilkan Kolom
+                    </div>
+                    {Object.entries({
+                      tanggal_penjualan: 'Tanggal',
+                      nomor_invoice: 'No. Invoice',
+                      customer: 'Pelanggan',
+                      kategori: 'Kategori',
+                      code: 'IMEI / Barcode',
+                      nama_barang: 'Nama Barang',
+                      qty: 'Qty',
+                      harga_modal: 'Harga Modal',
+                      harga_jual: 'Harga Jual',
+                      total_jual: 'Total Jual',
+                      profit: 'Keuntungan',
+                      kasir: 'Kasir',
+                    }).map(([key, label]) => (
+                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: '#333' }}>
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[key] ?? true}
+                          onChange={(e) => setVisibleColumns(prev => ({ ...prev, [key]: e.target.checked }))}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          }
         />
       </div>
     </div>
