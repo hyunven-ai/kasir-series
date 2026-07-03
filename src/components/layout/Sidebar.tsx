@@ -62,6 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Pembelian', href: '/transaksi/pembelian' },
       { label: 'Penjualan', href: '/transaksi/penjualan' },
       { label: 'Detail Penjualan', href: '/transaksi/detail-penjualan' },
+      { label: 'Barang Terjual', href: '/transaksi/barang-terjual' },
     ],
   },
   {
@@ -150,7 +151,15 @@ export default function Sidebar({ user, collapsed, mobileOpen, onCloseMobile }: 
             {(!collapsed || mobileOpen) && (
               <div className={`sidebar-group-items${openGroups[group.label] ? ' open' : ''}`}>
                 {group.items
-                  .filter(item => !(user?.role === 'kasir' && item.href === '/transaksi/pembelian'))
+                  .filter(item => {
+                    if (item.href === '/transaksi/barang-terjual') {
+                      return user?.role === 'super_admin';
+                    }
+                    if (user?.role === 'kasir' && item.href === '/transaksi/pembelian') {
+                      return false;
+                    }
+                    return true;
+                  })
                   .map(item => (
                     <Link
                       key={item.href}

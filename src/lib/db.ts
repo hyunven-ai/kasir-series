@@ -221,7 +221,7 @@ export async function getHpHdr() {
       ...h,
       details: h.details || [],
       stock_count: dtls.filter(d => !d.status || d.status === 'tersedia').length ?? 0,
-      imei_list: dtls.map(d => d.imei).join(' '),
+      imei_list: dtls.filter(d => !d.status || d.status === 'tersedia').map(d => d.imei).join(' '),
     };
   });
 }
@@ -260,7 +260,7 @@ export async function getHpDtl(idhdr: number) {
     .eq('idhdr', idhdr)
     .order('create_time', { ascending: false });
   if (error) throw error;
-  return data as MsHpDtl[];
+  return (data as MsHpDtl[]).filter(d => !d.status || d.status !== 'terjual');
 }
 
 export async function createHpDtl(payload: Omit<MsHpDtl, 'id' | 'create_time'>) {
@@ -305,7 +305,7 @@ export async function getHpNonPajakHdr() {
     const dtls = (h as unknown as { ms_hp_dtl_non_pajak?: MsHpDtlNonPajak[] }).ms_hp_dtl_non_pajak ?? [];
     return {
       ...h,
-      imei_list: dtls.map(d => d.imei).join(' '),
+      imei_list: dtls.filter(d => !d.status || d.status === 'tersedia').map(d => d.imei).join(' '),
     };
   });
 }
@@ -328,7 +328,7 @@ export async function getHpNonPajakDtl(idhdr: number) {
     .eq('idhdr', idhdr)
     .order('create_time', { ascending: false });
   if (error) throw error;
-  return data as MsHpDtlNonPajak[];
+  return (data as MsHpDtlNonPajak[]).filter(d => !d.status || d.status !== 'terjual');
 }
 
 export async function createHpNonPajakDtl(payload: Omit<MsHpDtlNonPajak, 'id' | 'create_time'>) {
@@ -401,7 +401,7 @@ export async function getCctvDtl(idhdr: number) {
     .eq('idhdr', idhdr)
     .order('create_time', { ascending: false });
   if (error) throw error;
-  return data as MsCctvDtl[];
+  return (data as MsCctvDtl[]).filter(d => !d.status || d.status !== 'terjual');
 }
 
 export async function createCctvDtl(payload: Omit<MsCctvDtl, 'id' | 'create_time'>) {
@@ -546,6 +546,116 @@ export async function deletePenjualan(id: number) {
 
   await writeLog('DELETE', 'trs_penjualan_hdr', `Hapus penjualan ID: ${id}`);
 }
+
+export async function cancelBarangTerjual(detailId: number) {
+  // 1. Dapatkan detail barang terjual
+  const { data: dtl, error: dtlErr } = await supabase
+    .from('trs_penjualan_dtl')
+    .select('*')
+    .eq('id', detailId)
+    .single();
+  if (dtlErr) throw dtlErr;
+  if (!dtl) throw new Error('Detail barang terjual tidak ditemukan');
+
+  const { idhdr, idbarang, kategori, qty, harga_jual, code, nama_barang } = dtl;
+
+  // 2. Kembalikan stok barang
+  await tambahStok(idbarang, kategori, qty);
+
+  // 3. Hapus row di trs_penjualan_dtl
+  const { error: delErr } = await supabase
+    .from('trs_penjualan_dtl')
+    .delete()
+    .eq('id', detailId);
+  if (delErr) throw delErr;
+
+  // 4. Update atau hapus header penjualan
+  const { data: remaining, error: remErr } = await supabase
+    .from('trs_penjualan_dtl')
+    .select('id')
+    .eq('idhdr', idhdr);
+  if (remErr) throw remErr;
+
+  if (!remaining || remaining.length === 0) {
+    // Jika tidak ada item tersisa, hapus header
+    const { error: hdrDelErr } = await supabase
+      .from('trs_penjualan_hdr')
+      .delete()
+      .eq('id', idhdr);
+    if (hdrDelErr) throw hdrDelErr;
+  } else {
+    // Jika masih ada item tersisa, kurangi total_harga header
+    const { data: hdr, error: hdrGetErr } = await supabase
+      .from('trs_penjualan_hdr')
+      .select('total_harga')
+      .eq('id', idhdr)
+      .single();
+    if (hdrGetErr) throw hdrGetErr;
+
+    const newTotal = (hdr?.total_harga || 0) - (harga_jual * qty);
+    const { error: hdrUpdErr } = await supabase
+      .from('trs_penjualan_hdr')
+      .update({ total_harga: newTotal, update_time: new Date().toISOString() })
+      .eq('id', idhdr);
+    if (hdrUpdErr) throw hdrUpdErr;
+  }
+
+  await writeLog('DELETE', 'trs_penjualan_dtl', `Batal terjual detail ID: ${detailId}, Barang: ${nama_barang}, Code: ${code || '-'}, Qty: ${qty}`);
+}
+
+export async function deleteBarangTerjual(detailId: number) {
+  // 1. Dapatkan detail barang terjual
+  const { data: dtl, error: dtlErr } = await supabase
+    .from('trs_penjualan_dtl')
+    .select('*')
+    .eq('id', detailId)
+    .single();
+  if (dtlErr) throw dtlErr;
+  if (!dtl) throw new Error('Detail barang terjual tidak ditemukan');
+
+  const { idhdr, qty, harga_jual, code, nama_barang } = dtl;
+
+  // 2. Hapus row di trs_penjualan_dtl (TIDAK mengembalikan stok)
+  const { error: delErr } = await supabase
+    .from('trs_penjualan_dtl')
+    .delete()
+    .eq('id', detailId);
+  if (delErr) throw delErr;
+
+  // 3. Update atau hapus header penjualan
+  const { data: remaining, error: remErr } = await supabase
+    .from('trs_penjualan_dtl')
+    .select('id')
+    .eq('idhdr', idhdr);
+  if (remErr) throw remErr;
+
+  if (!remaining || remaining.length === 0) {
+    // Jika tidak ada item tersisa, hapus header
+    const { error: hdrDelErr } = await supabase
+      .from('trs_penjualan_hdr')
+      .delete()
+      .eq('id', idhdr);
+    if (hdrDelErr) throw hdrDelErr;
+  } else {
+    // Jika masih ada item tersisa, kurangi total_harga header
+    const { data: hdr, error: hdrGetErr } = await supabase
+      .from('trs_penjualan_hdr')
+      .select('total_harga')
+      .eq('id', idhdr)
+      .single();
+    if (hdrGetErr) throw hdrGetErr;
+
+    const newTotal = (hdr?.total_harga || 0) - (harga_jual * qty);
+    const { error: hdrUpdErr } = await supabase
+      .from('trs_penjualan_hdr')
+      .update({ total_harga: newTotal, update_time: new Date().toISOString() })
+      .eq('id', idhdr);
+    if (hdrUpdErr) throw hdrUpdErr;
+  }
+
+  await writeLog('DELETE', 'trs_penjualan_dtl', `Hapus permanen barang terjual ID: ${detailId}, Barang: ${nama_barang}, Code: ${code || '-'}, Qty: ${qty}`);
+}
+
 
 export async function updatePenjualanHeader(id: number, payload: Partial<TrsPenjualanHdr>) {
   const { data, error } = await supabase
