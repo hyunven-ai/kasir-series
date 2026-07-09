@@ -14,6 +14,7 @@ import type {
   TrsPembelianHdr, TrsPembelianDtl,
   TrsPenjualanHdr, TrsPenjualanDtl,
   DashboardStats, ChartDataPoint, KategoriSales,
+  MsGaransi,
 } from './types';
 
 // ============================================
@@ -1196,4 +1197,138 @@ export async function deleteUser(id: number) {
     .eq('id', id);
   if (error) throw error;
 }
+
+// ============================================
+// WARRANTY (GARANSI) DATA HELPERS
+// ============================================
+
+function getLocalGaransi(): MsGaransi[] {
+  if (typeof window === 'undefined') return [];
+  const local = localStorage.getItem('local_garansi');
+  return local ? JSON.parse(local) : [];
+}
+
+function saveLocalGaransi(data: MsGaransi[]) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('local_garansi', JSON.stringify(data));
+  }
+}
+
+export async function getGaransi() {
+  try {
+    const { data, error } = await supabase
+      .from('garansi')
+      .select('*')
+      .order('create_time', { ascending: false });
+    
+    if (error) {
+      console.warn('Supabase error, using localStorage fallback:', error);
+      return getLocalGaransi();
+    }
+    return data as MsGaransi[];
+  } catch (e) {
+    console.warn('Supabase exception, using localStorage fallback:', e);
+    return getLocalGaransi();
+  }
+}
+
+export async function createGaransi(payload: Omit<MsGaransi, 'id' | 'create_time'>) {
+  try {
+    const { data, error } = await supabase
+      .from('garansi')
+      .insert(payload)
+      .select()
+      .single();
+    
+    if (error) {
+      console.warn('Supabase error, using localStorage fallback:', error);
+      const local = getLocalGaransi();
+      const newEntry: MsGaransi = {
+        ...payload,
+        id: Date.now(),
+        create_time: new Date().toISOString(),
+      };
+      local.unshift(newEntry);
+      saveLocalGaransi(local);
+      await writeLog('INSERT', 'garansi (local)', `Tambah Garansi Local: ${payload.nama_pelanggan} - HP: ${payload.merk_tipe}`);
+      return newEntry;
+    }
+    
+    await writeLog('INSERT', 'garansi', `Tambah Garansi: ${payload.nama_pelanggan} - HP: ${payload.merk_tipe}`);
+    return data as MsGaransi;
+  } catch (e) {
+    console.warn('Supabase exception, using localStorage fallback:', e);
+    const local = getLocalGaransi();
+    const newEntry: MsGaransi = {
+      ...payload,
+      id: Date.now(),
+      create_time: new Date().toISOString(),
+    };
+    local.unshift(newEntry);
+    saveLocalGaransi(local);
+    await writeLog('INSERT', 'garansi (local)', `Tambah Garansi Local: ${payload.nama_pelanggan} - HP: ${payload.merk_tipe}`);
+    return newEntry;
+  }
+}
+
+export async function updateGaransi(id: number, payload: Partial<MsGaransi>) {
+  try {
+    const { data, error } = await supabase
+      .from('garansi')
+      .update({ ...payload, update_time: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) {
+      console.warn('Supabase error, using localStorage fallback:', error);
+      const local = getLocalGaransi();
+      const idx = local.findIndex(item => item.id === id);
+      if (idx !== -1) {
+        local[idx] = {
+          ...local[idx],
+          ...payload,
+          update_time: new Date().toISOString(),
+        };
+        saveLocalGaransi(local);
+        return local[idx];
+      }
+      throw new Error('Data tidak ditemukan di localStorage');
+    }
+    return data as MsGaransi;
+  } catch (e) {
+    console.warn('Supabase exception, using localStorage fallback:', e);
+    const local = getLocalGaransi();
+    const idx = local.findIndex(item => item.id === id);
+    if (idx !== -1) {
+      local[idx] = {
+        ...local[idx],
+        ...payload,
+        update_time: new Date().toISOString(),
+      };
+      saveLocalGaransi(local);
+      return local[idx];
+    }
+    throw e;
+  }
+}
+
+export async function deleteGaransi(id: number) {
+  try {
+    const { error } = await supabase.from('garansi').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase error, using localStorage fallback:', error);
+      const local = getLocalGaransi();
+      const filtered = local.filter(item => item.id !== id);
+      saveLocalGaransi(filtered);
+      return;
+    }
+  } catch (e) {
+    console.warn('Supabase exception, using localStorage fallback:', e);
+    const local = getLocalGaransi();
+    const filtered = local.filter(item => item.id !== id);
+    saveLocalGaransi(filtered);
+  }
+}
+
 

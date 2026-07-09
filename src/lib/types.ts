@@ -297,3 +297,28 @@ export interface LogAktivitas {
   detail: string;
   waktu: string;
 }
+
+// ============================================
+// WARRANTY TYPES
+// ============================================
+
+export interface MsGaransi {
+  id: number;
+  id_transaksi: string;
+  nama_pelanggan: string;
+  nomor_whatsapp: string;
+  imei1?: string;
+  imei2?: string;
+  nomor_seri?: string;
+  merk_tipe: string;
+  warna_kapasitas?: string;
+  tanggal_pembelian: string;
+  durasi_garansi: string;
+  jenis_garansi: string;
+  status_garansi: string;
+  create_time: string;
+  create_by?: string;
+  update_time?: string;
+  update_by?: string;
+}
+

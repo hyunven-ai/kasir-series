@@ -63,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Penjualan', href: '/transaksi/penjualan' },
       { label: 'Detail Penjualan', href: '/transaksi/detail-penjualan' },
       { label: 'Barang Terjual', href: '/transaksi/barang-terjual' },
+      { label: 'Garansi', href: '/transaksi/garansi' },
     ],
   },
   {
