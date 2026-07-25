@@ -11,6 +11,17 @@ import NumericInput from '@/components/ui/NumericInput';
 
 const METODE_OPTIONS: MetodePembayaran[] = ['Tunai', 'Debit', 'Transfer', 'QRIS'];
 
+const EWALLET_PROVIDERS = ['DANA', 'OVO', 'GoPay', 'ShopeePay', 'LinkAja', 'SAKUKU', 'i.saku'];
+const EWALLET_NOMINALS = [
+  { label: 'Rp 10.000', value: 10000 },
+  { label: 'Rp 20.000', value: 20000 },
+  { label: 'Rp 50.000', value: 50000 },
+  { label: 'Rp 100.000', value: 100000 },
+  { label: 'Rp 200.000', value: 200000 },
+  { label: 'Rp 500.000', value: 500000 },
+];
+const EWALLET_ADMIN_FEE = 2000;
+
 export default function PenjualanPage() {
   const user = getCurrentUser();
   const barcodeRef = useRef<HTMLInputElement>(null);
@@ -46,6 +57,22 @@ export default function PenjualanPage() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // E-Wallet modal state
+  const [ewalletModal, setEwalletModal] = useState(false);
+  const [ewalletProvider, setEwalletProvider] = useState('DANA');
+  const [ewalletPhone, setEwalletPhone] = useState('');
+  const [ewalletNominal, setEwalletNominal] = useState(0);
+  const [ewalletAdminFee, setEwalletAdminFee] = useState(EWALLET_ADMIN_FEE);
+  const [ewalletIsCustom, setEwalletIsCustom] = useState(false);
+  const [ewalletCustomNominal, setEwalletCustomNominal] = useState('');
+
+  // Jasa Service modal state
+  const [serviceModal, setServiceModal] = useState(false);
+  const [serviceName, setServiceName] = useState('');
+  const [serviceDesc, setServiceDesc] = useState('');
+  const [serviceModal_hargaModal, setServiceModal_hargaModal] = useState('');
+  const [serviceModal_hargaJual, setServiceModal_hargaJual] = useState('');
 
   const handleInputChange = async (val: string) => {
     setBarcode(val);
@@ -173,6 +200,73 @@ export default function PenjualanPage() {
 
   const updatePrice = (idx: number, price: number) => {
     setCart(prev => prev.map((c, i) => i === idx ? { ...c, harga_jual: price } : c));
+  };
+
+  // ============ E-Wallet handler ============
+  const openEwalletModal = () => {
+    setEwalletProvider('DANA');
+    setEwalletPhone('');
+    setEwalletNominal(0);
+    setEwalletAdminFee(EWALLET_ADMIN_FEE);
+    setEwalletIsCustom(false);
+    setEwalletCustomNominal('');
+    setEwalletModal(true);
+  };
+
+  const handleAddEwallet = () => {
+    const finalNominal = ewalletIsCustom ? (parseInt(ewalletCustomNominal) || 0) : ewalletNominal;
+    if (!ewalletPhone.trim() || finalNominal === 0) {
+      alert('Lengkapi nomor HP dan nominal top up');
+      return;
+    }
+    const totalCharge = finalNominal + ewalletAdminFee;
+    const item: CartItem = {
+      idbarang: Date.now(),
+      kategori: 'E-Wallet',
+      code: `EW-${Date.now()}`,
+      nama_barang: `Top Up ${ewalletProvider} ${ewalletPhone} — Rp ${finalNominal.toLocaleString('id-ID')}`,
+      qty: 1,
+      harga_modal: finalNominal,
+      harga_jual: totalCharge,
+      max_qty: 1,
+    };
+    setCart(prev => [...prev, item]);
+    setEwalletModal(false);
+    barcodeRef.current?.focus();
+  };
+
+  // ============ Jasa Service handler ============
+  const openServiceModal = () => {
+    setServiceName('');
+    setServiceDesc('');
+    setServiceModal_hargaModal('0');
+    setServiceModal_hargaJual('0');
+    setServiceModal(true);
+  };
+
+  const handleAddService = () => {
+    if (!serviceName.trim()) {
+      alert('Nama jasa service wajib diisi');
+      return;
+    }
+    const hargaJual = parseInt(serviceModal_hargaJual) || 0;
+    const hargaModal = parseInt(serviceModal_hargaModal) || 0;
+    const namaLengkap = serviceDesc.trim()
+      ? `${serviceName} — ${serviceDesc}`
+      : serviceName;
+    const item: CartItem = {
+      idbarang: Date.now(),
+      kategori: 'Jasa Service',
+      code: `SVC-${Date.now()}`,
+      nama_barang: namaLengkap,
+      qty: 1,
+      harga_modal: hargaModal,
+      harga_jual: hargaJual,
+      max_qty: 99,
+    };
+    setCart(prev => [...prev, item]);
+    setServiceModal(false);
+    barcodeRef.current?.focus();
   };
 
   const handleCheckout = async () => {
@@ -338,6 +432,57 @@ export default function PenjualanPage() {
             )}
           </div>
 
+          {/* Quick-add service buttons */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)', gap: 0 }}>
+            <button
+              onClick={openEwalletModal}
+              id="btn-ewallet"
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                borderRight: '1px solid var(--border-light)',
+                color: 'var(--text-secondary)',
+                fontWeight: 500,
+                fontSize: 12,
+                padding: '9px 8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-elevated)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}
+            >
+              💳 Top Up E-Wallet
+            </button>
+            <button
+              onClick={openServiceModal}
+              id="btn-jasa-service"
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontWeight: 500,
+                fontSize: 12,
+                padding: '9px 8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-elevated)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}
+            >
+              🔧 Jasa Service
+            </button>
+          </div>
+
           {/* Cart items in main area */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 0 }}>
             {cart.length === 0 ? (
@@ -374,9 +519,15 @@ export default function PenjualanPage() {
                           item.kategori === 'HP' ? 'badge-info' :
                           item.kategori === 'HP Non Pajak' ? 'badge-purple' :
                           item.kategori === 'Aksesoris' ? 'badge-success' :
-                          item.kategori === 'CCTV' ? 'badge-warning' : 'badge-gray'
+                          item.kategori === 'CCTV' ? 'badge-warning' :
+                          item.kategori === 'Sparepart' ? 'badge-teal' :
+                          item.kategori === 'E-Wallet' ? 'badge-info' :
+                          item.kategori === 'Jasa Service' ? 'badge-purple' : 'badge-gray'
                         }`} style={{ fontSize: 10 }}>
-                          {item.kategori === 'HP Non Pajak' ? 'Non Pajak' : item.kategori}
+                          {item.kategori === 'HP Non Pajak' ? 'Non Pajak' :
+                           item.kategori === 'Jasa Service' ? 'Service' :
+                           item.kategori === 'E-Wallet' ? 'E-Wallet' :
+                           item.kategori}
                         </span>
                       </td>
                       <td>
@@ -564,6 +715,166 @@ export default function PenjualanPage() {
           </div>
         </div>
       </div>
+
+      {/* E-Wallet Top Up Modal */}
+      {ewalletModal && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{ maxWidth: 460 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">💳 Top Up E-Wallet</h2>
+              <button className="modal-close" onClick={() => setEwalletModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid">
+                <div className="form-group col-span-2">
+                  <label className="form-label">Provider E-Wallet *</label>
+                  <select
+                    className="form-control"
+                    value={ewalletProvider}
+                    onChange={e => setEwalletProvider(e.target.value)}
+                    id="ew-provider"
+                  >
+                    {EWALLET_PROVIDERS.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">Nomor HP Tujuan *</label>
+                  <input
+                    type="tel"
+                    className="form-control"
+                    placeholder="08xxxxxxxxxx"
+                    value={ewalletPhone}
+                    onChange={e => setEwalletPhone(e.target.value)}
+                    id="ew-phone"
+                  />
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">Nominal Top Up *</label>
+                  <select
+                    className="form-control"
+                    value={ewalletIsCustom ? 'custom' : ewalletNominal}
+                    onChange={e => {
+                      if (e.target.value === 'custom') {
+                        setEwalletIsCustom(true);
+                        setEwalletNominal(0);
+                      } else {
+                        setEwalletIsCustom(false);
+                        setEwalletNominal(Number(e.target.value));
+                      }
+                    }}
+                    id="ew-nominal"
+                  >
+                    <option value={0}>-- Pilih Nominal --</option>
+                    {EWALLET_NOMINALS.map(n => (
+                      <option key={n.value} value={n.value}>{n.label}</option>
+                    ))}
+                    <option value="custom">Nominal Kustom...</option>
+                  </select>
+                  {ewalletIsCustom && (
+                    <NumericInput
+                      className="form-control mt-8"
+                      placeholder="Masukkan nominal kustom"
+                      value={ewalletCustomNominal}
+                      onChange={(val, rawStr) => setEwalletCustomNominal(rawStr)}
+                      id="ew-custom-nominal"
+                    />
+                  )}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Biaya Admin (Ke Pelanggan)</label>
+                  <NumericInput
+                    className="form-control"
+                    value={ewalletAdminFee}
+                    onChange={val => setEwalletAdminFee(val)}
+                    id="ew-admin-fee"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Total Tagihan</label>
+                  <div
+                    className="form-control"
+                    style={{ background: 'var(--bg-elevated)', fontWeight: 700, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center' }}
+                  >
+                    {formatRupiah((ewalletIsCustom ? (parseInt(ewalletCustomNominal) || 0) : ewalletNominal) + ewalletAdminFee)}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setEwalletModal(false)}>Batal</button>
+              <button className="btn btn-primary" onClick={handleAddEwallet} id="btn-confirm-ewallet">
+                Tambah ke Keranjang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Jasa Service Modal */}
+      {serviceModal && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">🔧 Jasa Service</h2>
+              <button className="modal-close" onClick={() => setServiceModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid">
+                <div className="form-group col-span-2">
+                  <label className="form-label">Nama Jasa Service *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Ganti LCD, Ganti Baterai, Software, dll."
+                    value={serviceName}
+                    onChange={e => setServiceName(e.target.value)}
+                    id="svc-nama"
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group col-span-2">
+                  <label className="form-label">Deskripsi / Detail HP</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    placeholder="Detail pengerjaan / imei / keluhan pelanggan..."
+                    value={serviceDesc}
+                    onChange={e => setServiceDesc(e.target.value)}
+                    id="svc-desc"
+                    style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Harga Modal (Biaya Part)</label>
+                  <NumericInput
+                    className="form-control"
+                    placeholder="0"
+                    value={serviceModal_hargaModal}
+                    onChange={(val, rawStr) => setServiceModal_hargaModal(rawStr)}
+                    id="svc-modal"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Harga Jual (Total Biaya) *</label>
+                  <NumericInput
+                    className="form-control"
+                    placeholder="0"
+                    value={serviceModal_hargaJual}
+                    onChange={(val, rawStr) => setServiceModal_hargaJual(rawStr)}
+                    id="svc-jual"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setServiceModal(false)}>Batal</button>
+              <button className="btn btn-primary" onClick={handleAddService} id="btn-confirm-service">
+                Tambah ke Keranjang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Checkout Confirmation Modal */}
       {checkoutModal && (

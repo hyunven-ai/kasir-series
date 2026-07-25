@@ -64,6 +64,21 @@ export interface MsAksesoris {
   update_by?: string;
 }
 
+export interface MsSparepart {
+  id: number;
+  supplier: string;
+  barcode: string;
+  merk: string;
+  nama: string;
+  qty: number;
+  harga_modal: number;
+  harga_jual: number;
+  create_time: string;
+  create_by?: string;
+  update_time?: string;
+  update_by?: string;
+}
+
 export interface MsKuota {
   id: number;
   supplier: string;
@@ -171,7 +186,7 @@ export interface MsCctvDtl {
 // TRANSACTION TYPES
 // ============================================
 
-export type Kategori = 'HP' | 'HP Non Pajak' | 'Aksesoris' | 'CCTV' | 'Kuota';
+export type Kategori = 'HP' | 'HP Non Pajak' | 'Aksesoris' | 'CCTV' | 'Kuota' | 'Sparepart' | 'E-Wallet' | 'Jasa Service';
 export type MetodePembayaran = 'Tunai' | 'Debit' | 'Transfer' | 'QRIS';
 
 export interface TrsPembelianHdr {

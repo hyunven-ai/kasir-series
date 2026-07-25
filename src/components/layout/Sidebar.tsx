@@ -50,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Aksesoris', href: '/stock/aksesoris' },
       { label: 'CCTV', href: '/stock/cctv' },
       { label: 'Kuota', href: '/stock/kuota' },
+      { label: 'Sparepart', href: '/stock/sparepart' },
       { label: 'HP', href: '/stock/hp' },
       { label: 'HP Non Pajak', href: '/stock/hp-non-pajak' },
     ],

@@ -8,7 +8,7 @@ import { getCurrentUser } from './auth';
 
 import { supabase } from './supabase';
 import type {
-  MsAksesoris, MsKuota, MsHpHdr, MsHpDtl,
+  MsAksesoris, MsKuota, MsSparepart, MsHpHdr, MsHpDtl,
   MsHpHdrNonPajak, MsHpDtlNonPajak, MsCctvHdr, MsCctvDtl,
   MsMerk, MsOperator, MsSupplier,
   TrsPembelianHdr, TrsPembelianDtl,
@@ -163,6 +163,46 @@ export async function updateAksesoris(id: number, payload: Partial<MsAksesoris>)
 
 export async function deleteAksesoris(id: number) {
   const { error } = await supabase.from('ms_aksesoris').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ============================================
+// STOCK - SPAREPART
+// ============================================
+
+export async function getSparepart() {
+  const { data, error } = await supabase
+    .from('ms_sparepart')
+    .select('*')
+    .order('nama');
+  if (error) throw error;
+  return data as MsSparepart[];
+}
+
+export async function createSparepart(payload: Omit<MsSparepart, 'id' | 'create_time'>) {
+  const { data, error } = await supabase
+    .from('ms_sparepart')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  await writeLog('INSERT', 'ms_sparepart', `Tambah Sparepart: ${payload.nama} (Merk: ${payload.merk}, Qty: ${payload.qty})`);
+  return data as MsSparepart;
+}
+
+export async function updateSparepart(id: number, payload: Partial<MsSparepart>) {
+  const { data, error } = await supabase
+    .from('ms_sparepart')
+    .update({ ...payload, update_time: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MsSparepart;
+}
+
+export async function deleteSparepart(id: number) {
+  const { error } = await supabase.from('ms_sparepart').delete().eq('id', id);
   if (error) throw error;
 }
 
@@ -520,7 +560,10 @@ async function kurangiStok(idbarang: number, kategori: string, qty: number, code
       .from('ms_cctv_dtl')
       .update({ status: 'terjual', update_time: new Date().toISOString() })
       .eq('id', idbarang);
+  } else if (kategori === 'Sparepart') {
+    await supabase.rpc('kurangi_qty_sparepart', { p_id: idbarang, p_qty: qty });
   }
+  // E-Wallet and Jasa Service have no inventory – nothing to reduce
 }
 
 export async function deletePenjualan(id: number) {
@@ -689,7 +732,13 @@ async function tambahStok(idbarang: number, kategori: string, qty: number) {
     await supabase.from('ms_hp_dtl_non_pajak').update({ status: 'tersedia', update_time: new Date().toISOString() }).eq('id', idbarang);
   } else if (kategori === 'CCTV') {
     await supabase.from('ms_cctv_dtl').update({ status: 'tersedia', update_time: new Date().toISOString() }).eq('id', idbarang);
+  } else if (kategori === 'Sparepart') {
+    const { data } = await supabase.from('ms_sparepart').select('qty').eq('id', idbarang).single();
+    if (data) {
+      await supabase.from('ms_sparepart').update({ qty: (data.qty || 0) + qty, update_time: new Date().toISOString() }).eq('id', idbarang);
+    }
   }
+  // E-Wallet and Jasa Service have no inventory – nothing to restore
 }
 
 // ============================================
@@ -755,12 +804,13 @@ export async function getDashboardStats(from?: string, to?: string): Promise<Das
   });
 
   // Count total products
-  const [hp, hpnp, aksesoris, cctv, kuota] = await Promise.all([
+  const [hp, hpnp, aksesoris, cctv, kuota, sparepart] = await Promise.all([
     supabase.from('ms_hp_dtl').select('id', { count: 'exact' }).or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_hp_dtl_non_pajak').select('id', { count: 'exact' }).or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_aksesoris').select('qty').gt('qty', 0),
     supabase.from('ms_cctv_dtl').select('id', { count: 'exact' }).or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_kuota').select('qty').gt('qty', 0),
+    supabase.from('ms_sparepart').select('qty').gt('qty', 0),
   ]);
 
   const hpStock = hp.count ?? 0;
@@ -768,15 +818,17 @@ export async function getDashboardStats(from?: string, to?: string): Promise<Das
   const aksStock = (aksesoris.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.qty as number), 0);
   const cctvStock = cctv.count ?? 0;
   const kuotaStock = (kuota.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.qty as number), 0);
-  const total_produk = hpStock + hpnpStock + aksStock + cctvStock + kuotaStock;
+  const sparepartStock = (sparepart.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.qty as number), 0);
+  const total_produk = hpStock + hpnpStock + aksStock + cctvStock + kuotaStock + sparepartStock;
 
   // Total aset = nilai modal stok yang tersedia
-  const [hpModal, hpnpModal, aksModal, cctvModal, kuotaModal] = await Promise.all([
+  const [hpModal, hpnpModal, aksModal, cctvModal, kuotaModal, sparepartModal] = await Promise.all([
     supabase.from('ms_hp_dtl').select('harga_modal').or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_hp_dtl_non_pajak').select('harga_modal').or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_aksesoris').select('harga_modal, qty').gt('qty', 0),
     supabase.from('ms_cctv_dtl').select('harga_modal').or('status.is.null,status.eq.tersedia'),
     supabase.from('ms_kuota').select('harga_modal, qty').gt('qty', 0),
+    supabase.from('ms_sparepart').select('harga_modal, qty').gt('qty', 0),
   ]);
 
   const hpModalSum = (hpModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0), 0);
@@ -784,8 +836,9 @@ export async function getDashboardStats(from?: string, to?: string): Promise<Das
   const aksModalSum = (aksModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0) * (r.qty as number ?? 0), 0);
   const cctvModalSum = (cctvModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0), 0);
   const kuotaModalSum = (kuotaModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0) * (r.qty as number ?? 0), 0);
+  const sparepartModalSum = (sparepartModal.data ?? []).reduce((sum: number, r: Record<string, unknown>) => sum + (r.harga_modal as number ?? 0) * (r.qty as number ?? 0), 0);
 
-  const total_aset = hpModalSum + hpnpModalSum + aksModalSum + cctvModalSum + kuotaModalSum;
+  const total_aset = hpModalSum + hpnpModalSum + aksModalSum + cctvModalSum + kuotaModalSum + sparepartModalSum;
 
   return {
     total_pemasukan,
@@ -872,6 +925,28 @@ export async function searchBarcode(barcode: string) {
       harga_jual: aks.harga_jual,
       supplier: aks.supplier,
       max_qty: aks.qty,
+    };
+  }
+
+  // Search in sparepart
+  const { data: spr } = await supabase
+    .from('ms_sparepart')
+    .select('*')
+    .eq('barcode', barcode)
+    .gt('qty', 0)
+    .single();
+
+  if (spr) {
+    return {
+      idbarang: spr.id,
+      kategori: 'Sparepart' as const,
+      code: spr.barcode,
+      nama_barang: `${spr.merk} ${spr.nama}`,
+      qty: 1,
+      harga_modal: spr.harga_modal,
+      harga_jual: spr.harga_jual,
+      supplier: spr.supplier,
+      max_qty: spr.qty,
     };
   }
 
@@ -1097,6 +1172,29 @@ export async function searchProductsByName(query: string) {
     });
   }
 
+  // 6. Sparepart
+  const { data: sprList } = await supabase
+    .from('ms_sparepart')
+    .select('*')
+    .or(`nama.ilike.${q},merk.ilike.${q}`)
+    .gt('qty', 0);
+  
+  if (sprList) {
+    sprList.forEach(item => {
+      results.push({
+        idbarang: item.id,
+        kategori: 'Sparepart' as const,
+        code: item.barcode,
+        nama_barang: `${item.merk} ${item.nama}`,
+        qty: 1,
+        harga_modal: item.harga_modal,
+        harga_jual: item.harga_jual,
+        supplier: item.supplier,
+        max_qty: item.qty,
+      });
+    });
+  }
+
   return results;
 }
 
@@ -1142,7 +1240,7 @@ export async function getItemEntryLogs() {
     .from('log_aktivitas')
     .select('*')
     .eq('aksi', 'INSERT')
-    .in('tabel', ['ms_aksesoris', 'ms_kuota', 'ms_hp_dtl', 'ms_hp_dtl_non_pajak', 'ms_cctv_dtl'])
+    .in('tabel', ['ms_aksesoris', 'ms_kuota', 'ms_hp_dtl', 'ms_hp_dtl_non_pajak', 'ms_cctv_dtl', 'ms_sparepart'])
     .order('waktu', { ascending: false });
   if (error) throw error;
   

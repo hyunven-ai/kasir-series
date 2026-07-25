@@ -5,10 +5,10 @@ import Link from 'next/link';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import NumericInput from '@/components/ui/NumericInput';
-import { getPembelian, createPembelian, getSuppliers, getAksesoris, getKuota } from '@/lib/db';
+import { getPembelian, createPembelian, getSuppliers, getAksesoris, getKuota, getSparepart } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, formatDateTime, generateInvoiceNo, today } from '@/lib/utils';
-import type { TrsPembelianHdr, TrsPembelianDtl, MsSupplier, MsAksesoris, MsKuota } from '@/lib/types';
+import type { TrsPembelianHdr, TrsPembelianDtl, MsSupplier, MsAksesoris, MsKuota, MsSparepart } from '@/lib/types';
 
 interface CartPembelian {
   idbarang: number;
@@ -41,6 +41,7 @@ export default function PembelianPage() {
   const [suppliers, setSuppliers] = useState<MsSupplier[]>([]);
   const [aksesoris, setAksesoris] = useState<MsAksesoris[]>([]);
   const [kuota, setKuota] = useState<MsKuota[]>([]);
+  const [sparepart, setSparepart] = useState<MsSparepart[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [dtlModal, setDtlModal] = useState(false);
   const [selectedHdr, setSelectedHdr] = useState<TrsPembelianHdr | null>(null);
@@ -51,8 +52,8 @@ export default function PembelianPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [d, s, a, k] = await Promise.all([getPembelian(), getSuppliers(), getAksesoris(), getKuota()]);
-      setData(d); setSuppliers(s); setAksesoris(a); setKuota(k);
+      const [d, s, a, k, sp] = await Promise.all([getPembelian(), getSuppliers(), getAksesoris(), getKuota(), getSparepart()]);
+      setData(d); setSuppliers(s); setAksesoris(a); setKuota(k); setSparepart(sp);
     } catch { /* no-op */ }
     finally { setLoading(false); }
   };
@@ -86,7 +87,7 @@ export default function PembelianPage() {
         },
         items.map(item => ({
           idbarang: item.idbarang,
-          kategori: item.kategori as 'HP' | 'HP Non Pajak' | 'Aksesoris' | 'CCTV' | 'Kuota',
+          kategori: item.kategori as 'HP' | 'HP Non Pajak' | 'Aksesoris' | 'CCTV' | 'Kuota' | 'Sparepart' | 'E-Wallet' | 'Jasa Service',
           code: item.code,
           nama_barang: item.nama_barang,
           qty: item.qty,
@@ -215,7 +216,7 @@ export default function PembelianPage() {
                   <td>
                     <select className="form-control" value={item.kategori} onChange={e => updateItem(i, 'kategori', e.target.value)} id={`po-item-kat-${i}`}>
                       <option>HP</option><option>HP Non Pajak</option>
-                      <option>Aksesoris</option><option>CCTV</option><option>Kuota</option>
+                      <option>Aksesoris</option><option>CCTV</option><option>Kuota</option><option>Sparepart</option>
                     </select>
                   </td>
                   <td>

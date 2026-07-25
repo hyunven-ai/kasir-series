@@ -8,7 +8,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { formatDate } from '@/lib/utils';
 import type { MsMerk } from '@/lib/types';
 
-const KATEGORI_OPTIONS = ['HP', 'HP Non Pajak', 'Aksesoris', 'CCTV', 'Kuota'];
+const KATEGORI_OPTIONS = ['HP', 'HP Non Pajak', 'Aksesoris', 'CCTV', 'Kuota', 'Sparepart'];
 
 export default function MerkPage() {
   const user = getCurrentUser();
@@ -100,7 +100,8 @@ export default function MerkPage() {
           row.kategori === 'HP' ? 'badge-info' :
           row.kategori === 'HP Non Pajak' ? 'badge-purple' :
           row.kategori === 'Aksesoris' ? 'badge-success' :
-          row.kategori === 'CCTV' ? 'badge-warning' : 'badge-gray'
+          row.kategori === 'CCTV' ? 'badge-warning' :
+          row.kategori === 'Sparepart' ? 'badge-teal' : 'badge-gray'
         }`}>
           {row.kategori}
         </span>
