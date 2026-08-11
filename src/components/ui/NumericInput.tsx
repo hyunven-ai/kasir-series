@@ -10,6 +10,7 @@ interface NumericInputProps {
   id?: string;
   required?: boolean;
   disabled?: boolean;
+  style?: React.CSSProperties;
 }
 
 export default function NumericInput({
@@ -19,7 +20,8 @@ export default function NumericInput({
   placeholder = '0',
   id,
   required,
-  disabled
+  disabled,
+  style
 }: NumericInputProps) {
   // Convert number to Indonesian thousand separator format
   const formatValue = (val: number | string) => {
@@ -45,6 +47,7 @@ export default function NumericInput({
       id={id}
       required={required}
       disabled={disabled}
+      style={style}
     />
   );
 }

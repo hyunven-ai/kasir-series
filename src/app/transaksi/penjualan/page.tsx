@@ -531,16 +531,24 @@ export default function PenjualanPage() {
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 12, color: '#888' }}>Rp</span>
-                          <div style={{ width: 100 }}>
-                            <NumericInput
-                              className="form-control form-control-sm"
-                              value={item.harga_jual}
-                              onChange={(val) => updatePrice(idx, val)}
-                              id={`pos-item-price-${idx}`}
-                            />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontSize: 12, color: '#888' }}>Rp</span>
+                            <div style={{ width: 100 }}>
+                              <NumericInput
+                                className="form-control form-control-sm"
+                                value={item.harga_jual}
+                                onChange={(val) => updatePrice(idx, val)}
+                                id={`pos-item-price-${idx}`}
+                                style={item.harga_jual < item.harga_modal ? { borderColor: '#ef5350', color: '#ef5350', fontWeight: 'bold' } : undefined}
+                              />
+                            </div>
                           </div>
+                          {item.harga_jual < item.harga_modal && (
+                            <div style={{ color: '#ef5350', fontSize: '9px', fontWeight: 600, whiteSpace: 'nowrap' }} title={`Harga modal: ${formatRupiah(item.harga_modal)}`}>
+                              Di bawah modal!
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td>
