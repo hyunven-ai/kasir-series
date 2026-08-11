@@ -337,7 +337,7 @@ export default function PenjualanPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Kasir — Penjualan</h1>
+          <h1 className="page-title">Kasir</h1>
           <p className="page-subtitle">{today()} | {user?.nama_lengkap}</p>
         </div>
       </div>

@@ -61,7 +61,7 @@ const NAV_GROUPS: NavGroup[] = [
     feature: 'transaksi',
     items: [
       { label: 'Pembelian', href: '/transaksi/pembelian' },
-      { label: 'Penjualan', href: '/transaksi/penjualan' },
+      { label: 'Kasir', href: '/transaksi/penjualan' },
       { label: 'Detail Penjualan', href: '/transaksi/detail-penjualan' },
       { label: 'Barang Terjual', href: '/transaksi/barang-terjual' },
       { label: 'Garansi', href: '/transaksi/garansi' },
