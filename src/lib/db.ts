@@ -489,27 +489,45 @@ export async function updateCctvHdr(id: number, payload: Partial<MsCctvHdr>) {
 // ============================================
 
 export async function getPenjualan(from?: string, to?: string) {
-  let query = supabase
-    .from('trs_penjualan_hdr')
-    .select(`*, trs_penjualan_dtl(*)`)
-    .order('tanggal_penjualan', { ascending: false });
+  let allData: TrsPenjualanHdr[] = [];
+  let fromIndex = 0;
+  const step = 1000;
 
-  if (from) {
-    const d = new Date(from);
-    d.setDate(d.getDate() - 1);
-    const marginFrom = d.toISOString().split('T')[0];
-    query = query.gte('tanggal_penjualan', marginFrom + 'T00:00:00Z');
-  }
-  if (to) {
-    const d = new Date(to);
-    d.setDate(d.getDate() + 1);
-    const marginTo = d.toISOString().split('T')[0];
-    query = query.lte('tanggal_penjualan', marginTo + 'T23:59:59Z');
+  while (true) {
+    let query = supabase
+      .from('trs_penjualan_hdr')
+      .select(`*, trs_penjualan_dtl(*)`)
+      .order('tanggal_penjualan', { ascending: false })
+      .range(fromIndex, fromIndex + step - 1);
+
+    if (from) {
+      const d = new Date(from);
+      d.setDate(d.getDate() - 1);
+      const marginFrom = d.toISOString().split('T')[0];
+      query = query.gte('tanggal_penjualan', marginFrom + 'T00:00:00Z');
+    }
+    if (to) {
+      const d = new Date(to);
+      d.setDate(d.getDate() + 1);
+      const marginTo = d.toISOString().split('T')[0];
+      query = query.lte('tanggal_penjualan', marginTo + 'T23:59:59Z');
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (data) {
+      allData = [...allData, ...(data as TrsPenjualanHdr[])];
+    }
+
+    if (!data || data.length < step) {
+      break;
+    }
+
+    fromIndex += step;
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as TrsPenjualanHdr[];
+  return allData;
 }
 
 export async function createPenjualan(
@@ -746,12 +764,31 @@ async function tambahStok(idbarang: number, kategori: string, qty: number) {
 // ============================================
 
 export async function getPembelian() {
-  const { data, error } = await supabase
-    .from('trs_pembelian_hdr')
-    .select(`*, trs_pembelian_dtl(*)`)
-    .order('tanggal_pembelian', { ascending: false });
-  if (error) throw error;
-  return data as TrsPembelianHdr[];
+  let allData: TrsPembelianHdr[] = [];
+  let fromIndex = 0;
+  const step = 1000;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('trs_pembelian_hdr')
+      .select(`*, trs_pembelian_dtl(*)`)
+      .order('tanggal_pembelian', { ascending: false })
+      .range(fromIndex, fromIndex + step - 1);
+      
+    if (error) throw error;
+    
+    if (data) {
+      allData = [...allData, ...(data as TrsPembelianHdr[])];
+    }
+    
+    if (!data || data.length < step) {
+      break;
+    }
+    
+    fromIndex += step;
+  }
+  
+  return allData;
 }
 
 export async function createPembelian(
