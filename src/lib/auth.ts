@@ -133,7 +133,7 @@ export const PERMISSIONS: Record<Role, string[]> = {
     'master', 'stock'
   ],
   kasir: [
-    'transaksi'
+    'transaksi', 'pengaturan'
   ],
 };
 

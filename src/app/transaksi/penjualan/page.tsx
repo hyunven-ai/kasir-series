@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { searchBarcode, createPenjualan, searchProductsByName } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { formatRupiah, generateInvoiceNo, today } from '@/lib/utils';
@@ -8,6 +9,7 @@ import type { CartItem, MetodePembayaran } from '@/lib/types';
 import PrintReceipt from '@/components/ui/PrintReceipt';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import NumericInput from '@/components/ui/NumericInput';
+import { getPrinterSettings } from '@/lib/printerSettings';
 
 const METODE_OPTIONS: MetodePembayaran[] = ['Tunai', 'Debit', 'Transfer', 'QRIS'];
 
@@ -313,6 +315,9 @@ export default function PenjualanPage() {
       });
       setCheckoutModal(false);
       setSuccessModal(true);
+      if (getPrinterSettings().autoPrint) {
+        setTimeout(() => window.print(), 350);
+      }
       setCart([]);
       setBayar('');
       setCustomer('Umum');
@@ -340,6 +345,15 @@ export default function PenjualanPage() {
           <h1 className="page-title">Kasir</h1>
           <p className="page-subtitle">{today()} | {user?.nama_lengkap}</p>
         </div>
+        <Link 
+          href="/pengaturan/printer" 
+          className="btn btn-secondary" 
+          style={{ fontSize: 13, gap: 6, textDecoration: 'none' }}
+          title="Pengaturan Kertas & Struk Kasir"
+        >
+          <span>🖨️</span>
+          <span>Pengaturan Printer</span>
+        </Link>
       </div>
 
       <div className="pos-layout">

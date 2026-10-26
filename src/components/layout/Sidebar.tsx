@@ -72,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: '⚙️',
     feature: 'pengaturan',
     items: [
+      { label: 'Printer', href: '/pengaturan/printer' },
       { label: 'Pengguna', href: '/pengaturan/pengguna' },
       { label: 'Log Aktivitas', href: '/pengaturan/log-aktivitas' },
       { label: 'Log Barang', href: '/pengaturan/log-barang' },
@@ -159,6 +160,12 @@ export default function Sidebar({ user, collapsed, mobileOpen, onCloseMobile }: 
                     }
                     if (user?.role === 'kasir' && item.href === '/transaksi/pembelian') {
                       return false;
+                    }
+                    if (item.href === '/pengaturan/pengguna' || item.href === '/pengaturan/log-aktivitas' || item.href === '/pengaturan/log-barang') {
+                      return user?.role === 'super_admin';
+                    }
+                    if (item.href === '/pengaturan/printer') {
+                      return user?.role === 'super_admin' || user?.role === 'kasir';
                     }
                     return true;
                   })

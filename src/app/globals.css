@@ -1346,6 +1346,12 @@ input[type=number]::-webkit-inner-spin-button {
     overflow: hidden !important;
   }
 
+  .print-receipt-container.paper-80mm {
+    width: 72mm !important;
+    max-width: 72mm !important;
+    font-size: 10pt !important;
+  }
+
   .receipt-logo {
     width: 58px !important;
     height: 58px !important;
