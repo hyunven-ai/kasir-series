@@ -1328,79 +1328,138 @@ input[type=number]::-webkit-inner-spin-button {
     background: #fff !important;
     color: #000 !important;
     font-family: 'Inter', Arial, sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print-receipt-container {
     display: block !important;
-    width: 58mm !important;
-    max-width: 58mm !important;
-    padding: 1mm !important;
-    margin: 0 !important;
+    /* POS-58 printer uses 58mm paper but has 48mm physical printable head */
+    width: 48mm !important;
+    max-width: 48mm !important;
+    margin: 0 auto !important;
+    padding: 0 1mm !important;
     box-sizing: border-box !important;
-    font-size: 11pt !important;
-    line-height: 1.4 !important;
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+    word-break: break-word !important;
+    overflow: hidden !important;
   }
 
   .receipt-shop-name {
-    font-size: 16pt !important;
+    font-size: 13pt !important;
     font-weight: 800 !important;
-    margin: 4px 0 2px !important;
+    margin: 3px 0 2px !important;
+    text-align: center !important;
   }
 
   .receipt-shop-address {
-    font-size: 10pt !important;
+    font-size: 8.5pt !important;
     font-weight: 500 !important;
+    text-align: center !important;
+    margin: 0 !important;
+    line-height: 1.25 !important;
   }
 
   .receipt-header span {
-    font-size: 9.5pt !important;
+    font-size: 8pt !important;
   }
 
   .receipt-meta {
-    font-size: 10.5pt !important;
+    font-size: 8.5pt !important;
     font-weight: 600 !important;
-    margin-top: 6px !important;
+    margin-top: 4px !important;
+    display: flex !important;
+    justify-content: space-between !important;
   }
 
   .receipt-meta span {
-    font-size: 10.5pt !important;
+    font-size: 8.5pt !important;
+  }
+
+  .receipt-divider {
+    border-top: 1px dashed #000000 !important;
+    margin: 4px 0 !important;
+    width: 100% !important;
+  }
+
+  .receipt-items {
+    margin: 4px 0 !important;
+  }
+
+  .receipt-item-row {
+    margin-bottom: 5px !important;
   }
 
   .receipt-item-title {
-    font-size: 11pt !important;
+    font-size: 9pt !important;
     font-weight: 700 !important;
+    word-break: break-word !important;
+    line-height: 1.25 !important;
+  }
+
+  .receipt-item-imei {
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    padding-left: 6px !important;
+    white-space: pre-line !important;
+    word-break: break-all !important;
+    line-height: 1.2 !important;
   }
 
   .receipt-item-details {
-    font-size: 10.5pt !important;
+    font-size: 8.5pt !important;
     font-weight: 600 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    padding-left: 6px !important;
+  }
+
+  .receipt-summary {
+    margin: 2px 0 !important;
   }
 
   .receipt-summary-row {
-    font-size: 10.5pt !important;
+    font-size: 8.5pt !important;
     font-weight: 600 !important;
+    margin: 1px 0 !important;
+  }
+
+  .receipt-totals {
+    margin: 4px 0 !important;
   }
 
   .receipt-total-row {
-    font-size: 10.5pt !important;
+    font-size: 8.5pt !important;
     font-weight: 600 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    margin: 2px 0 !important;
   }
 
   .receipt-total-row.bold {
-    font-size: 13pt !important;
+    font-size: 11pt !important;
     font-weight: 800 !important;
   }
 
   .receipt-footer {
-    font-size: 11pt !important;
+    font-size: 9.5pt !important;
     font-weight: 800 !important;
-    margin-top: 12px !important;
+    margin-top: 8px !important;
+    text-align: center !important;
   }
 
   /* Warning text box styling */
-  .print-receipt-container div[style*="border"] {
-    font-size: 9.5pt !important;
-    padding: 6px !important;
+  .receipt-warning-box {
+    border: 1px solid #000000 !important;
+    font-size: 7.5pt !important;
+    padding: 3px 2px !important;
+    margin-top: 8px !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    line-height: 1.25 !important;
   }
 }
 

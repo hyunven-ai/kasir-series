@@ -105,7 +105,7 @@ export default function PrintReceipt({
         <span>{formatDateTime(tanggalPenjualan)}</span>
         <span>{displayIndex}</span>
       </div>
-      <div className="receipt-meta" style={{ marginTop: 2, fontSize: '10.5px' }}>
+      <div className="receipt-meta" style={{ marginTop: 2 }}>
         <span>Pembeli: {customer || 'Umum'}</span>
       </div>
 
@@ -118,7 +118,7 @@ export default function PrintReceipt({
               {index + 1}. {item.nama_barang.replace(/\s*\(Non Pajak\)/gi, '')}
             </div>
             {(item.kategori === 'HP' || item.kategori === 'HP Non Pajak') && item.code && (
-              <div style={{ fontSize: '11.5px', color: '#000', fontWeight: 'bold', paddingLeft: '12px', marginTop: '-1px', marginBottom: '1px' }}>
+              <div className="receipt-item-imei" style={{ fontSize: '10px', color: '#000', fontWeight: 'bold', paddingLeft: '6px', marginTop: '-1px', marginBottom: '1px', whiteSpace: 'pre-line', wordBreak: 'break-all' }}>
                 IMEI: {item.code}
               </div>
             )}
@@ -160,7 +160,7 @@ export default function PrintReceipt({
         )}
       </div>
 
-      <div style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '9.5px', marginTop: '12px', boxSizing: 'border-box' }}>
+      <div className="receipt-warning-box" style={{ border: '1px solid #000000', padding: '3px 2px', textAlign: 'center', fontWeight: 'bold', fontSize: '9px', marginTop: '10px', boxSizing: 'border-box' }}>
         Barang yang sudah di beli tidak bisa di kembalikan!!!
       </div>
 
