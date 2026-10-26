@@ -1346,6 +1346,15 @@ input[type=number]::-webkit-inner-spin-button {
     overflow: hidden !important;
   }
 
+  .receipt-logo {
+    width: 58px !important;
+    height: 58px !important;
+    object-fit: contain !important;
+    margin-bottom: 4px !important;
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+  }
+
   .receipt-shop-name {
     font-size: 13pt !important;
     font-weight: 800 !important;
@@ -1363,6 +1372,13 @@ input[type=number]::-webkit-inner-spin-button {
 
   .receipt-header span {
     font-size: 8pt !important;
+  }
+
+  .receipt-social-icon {
+    object-fit: contain !important;
+    flex-shrink: 0 !important;
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
   }
 
   .receipt-meta {
