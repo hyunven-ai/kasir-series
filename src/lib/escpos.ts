@@ -34,6 +34,8 @@ export interface EscPosOptions {
   warningNote?: string;
   footerNote?: string;
   printCopies?: number;
+  feedLinesBottom?: number;
+  enableAutoCut?: boolean;
 }
 
 export class EscPosBuilder {
@@ -284,10 +286,9 @@ export function buildReceiptEscPos(
   }
 
   // 6. CATATAN & FOOTER
-  builder.newLine();
-  builder.align('center');
-
   if (options.warningNote) {
+    builder.newLine();
+    builder.align('center');
     builder.bold(true);
     builder.divider('*', width);
     builder.textLine(options.warningNote);
@@ -297,12 +298,22 @@ export function buildReceiptEscPos(
 
   if (options.footerNote) {
     builder.newLine();
+    builder.align('center');
     builder.textLine(options.footerNote);
   }
 
-  // 7. FEED & CUT
-  builder.feed(4);
-  builder.cut();
+  // 7. SISA KERTAS BAWAH (FEED) - HEMAT KERTAS UNTUK POS-58
+  // POS-58 menggunakan pisau gerigi manual: 2 baris pas di posisi batas sobek (tanpa terbuang).
+  // 1 baris untuk paling rapat/hemat.
+  const bottomFeed = options.feedLinesBottom !== undefined ? options.feedLinesBottom : 2;
+  if (bottomFeed > 0) {
+    builder.feed(bottomFeed);
+  }
+
+  // Hanya kirim instruksi potong otomatis jika printer memiliki auto-cutter fisik
+  if (options.enableAutoCut) {
+    builder.cut();
+  }
 
   return builder.build();
 }
@@ -313,7 +324,9 @@ export function buildReceiptEscPos(
 export function buildTestReceiptEscPos(
   deviceName: string = 'Thermal Printer',
   paperWidth: '58mm' | '80mm' = '58mm',
-  connectionMode: string = 'Bluetooth BLE'
+  connectionMode: string = 'Bluetooth BLE',
+  feedLinesBottom: number = 2,
+  enableAutoCut: boolean = false
 ): Uint8Array {
   const width = paperWidth === '80mm' ? 48 : 32;
   const builder = new EscPosBuilder();
@@ -355,8 +368,13 @@ export function buildTestReceiptEscPos(
   builder.bold(false);
   builder.divider('=', width);
 
-  builder.feed(4);
-  builder.cut();
+  // Sisa kertas bawah hemat
+  if (feedLinesBottom > 0) {
+    builder.feed(feedLinesBottom);
+  }
+  if (enableAutoCut) {
+    builder.cut();
+  }
 
   return builder.build();
 }

@@ -885,6 +885,43 @@ export default function PrinterSettingsPage() {
                   <option value={2}>2 Rangkap</option>
                 </select>
               </div>
+
+              {/* Pengaturan Sisa Kertas Bawah (Feed) - Solusi Hemat Kertas POS-58 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Sisa Kertas Bawah (Feed):</span>
+                <select 
+                  className="form-control" 
+                  style={{ width: 220 }}
+                  value={settings.feedLinesBottom ?? 2}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    handleChange('feedLinesBottom', val);
+                    savePrinterSettings({ feedLinesBottom: val });
+                  }}
+                >
+                  <option value={2}>2 Baris (Rekomendasi POS-58)</option>
+                  <option value={1}>1 Baris (Paling Hemat / Rapat)</option>
+                  <option value={3}>3 Baris (Standar)</option>
+                  <option value={4}>4 Baris (Longgar)</option>
+                </select>
+              </div>
+
+              {/* Toggle Auto-Cutter */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={Boolean(settings.enableAutoCut)}
+                  onChange={e => {
+                    handleChange('enableAutoCut', e.target.checked);
+                    savePrinterSettings({ enableAutoCut: e.target.checked });
+                  }}
+                  style={{ width: 18, height: 18, cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Pisau Auto-Cutter</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Matikan untuk printer manual sobek (POS-58) agar kertas tidak terbuang panjang</div>
+                </div>
+              </label>
             </div>
           </div>
         </div>
@@ -957,6 +994,29 @@ export default function PrinterSettingsPage() {
                       Printer kasir ukuran sedang/lebar (lebar print 72mm).
                     </span>
                   </label>
+                </div>
+
+                {/* Sisa Kertas Bawah Setting */}
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Sisa Kertas Bawah (Feed):</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Mencegah kertas terlalu panjang di bawah footer "TERIMA KASIH"</div>
+                  </div>
+                  <select 
+                    className="form-control" 
+                    style={{ width: 220 }}
+                    value={settings.feedLinesBottom ?? 2}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      handleChange('feedLinesBottom', val);
+                      savePrinterSettings({ feedLinesBottom: val });
+                    }}
+                  >
+                    <option value={2}>2 Baris (Rekomendasi POS-58)</option>
+                    <option value={1}>1 Baris (Paling Hemat / Rapat)</option>
+                    <option value={3}>3 Baris (Standar)</option>
+                    <option value={4}>4 Baris (Longgar)</option>
+                  </select>
                 </div>
               </div>
             </div>

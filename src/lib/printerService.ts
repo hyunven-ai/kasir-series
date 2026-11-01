@@ -107,6 +107,8 @@ export async function printReceipt(
     showImei: settings.showImei,
     warningNote: settings.warningNote,
     footerNote: settings.footerNote,
+    feedLinesBottom: settings.feedLinesBottom ?? 2,
+    enableAutoCut: settings.enableAutoCut ?? false,
   });
 
   const btState = getBluetoothState();
@@ -201,7 +203,7 @@ export async function testPrintNative(
 
   if (btState.connected) {
     const devName = preferredDeviceName || btState.deviceName || 'Printer Bluetooth';
-    const testBytes = buildTestReceiptEscPos(devName, width, 'Bluetooth BLE Native');
+    const testBytes = buildTestReceiptEscPos(devName, width, 'Bluetooth BLE Native', settings.feedLinesBottom ?? 2, settings.enableAutoCut ?? false);
     await printViaBluetooth(testBytes);
     return {
       success: true,
@@ -212,7 +214,7 @@ export async function testPrintNative(
 
   if (usbState.connected) {
     const devName = preferredDeviceName || usbState.deviceName || 'Printer USB';
-    const testBytes = buildTestReceiptEscPos(devName, width, 'WebUSB Direct OTG');
+    const testBytes = buildTestReceiptEscPos(devName, width, 'WebUSB Direct OTG', settings.feedLinesBottom ?? 2, settings.enableAutoCut ?? false);
     await printViaUsb(testBytes);
     return {
       success: true,

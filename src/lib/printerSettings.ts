@@ -30,6 +30,8 @@ export interface PrinterSettings {
   showImei: boolean;
   warningNote: string;
   footerNote: string;
+  feedLinesBottom: number; // Jumlah baris kosong di bawah struk (1: hemat rapat, 2: rekomendasi POS-58)
+  enableAutoCut: boolean; // Aktifkan hanya jika printer memiliki pisau potong otomatis (auto-cutter)
 }
 
 export const DEFAULT_PRINTER_SETTINGS: PrinterSettings = {
@@ -49,6 +51,8 @@ export const DEFAULT_PRINTER_SETTINGS: PrinterSettings = {
   showImei: true,
   warningNote: 'Barang yang sudah di beli tidak bisa di kembalikan!!!',
   footerNote: 'TERIMA KASIH BOSKUUU!!!',
+  feedLinesBottom: 2,
+  enableAutoCut: false,
 };
 
 const STORAGE_KEY = 'series_printer_settings';

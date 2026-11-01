@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
 import { getPenjualan, deletePenjualan, updatePenjualanHeader, getMerks } from '@/lib/db';
@@ -8,7 +9,15 @@ import { formatRupiah, formatDateTime, today, daysAgo } from '@/lib/utils';
 import type { TrsPenjualanHdr, TrsPenjualanDtl, MetodePembayaran, MsMerk } from '@/lib/types';
 import PrintReceipt from '@/components/ui/PrintReceipt';
 import { getCurrentUser } from '@/lib/auth';
-import { printReceipt, isNativePrinterConnected } from '@/lib/printerService';
+import { printReceipt, isNativePrinterConnected, sendToRawBtAndroid } from '@/lib/printerService';
+import { 
+  connectBluetoothPrinter, 
+  subscribeBluetoothStatus, 
+  BluetoothPrinterState, 
+  isWebBluetoothSupported 
+} from '@/lib/bluetoothPrinter';
+import { buildReceiptEscPos } from '@/lib/escpos';
+import { getPrinterSettings } from '@/lib/printerSettings';
 
 export default function DetailPenjualanPage() {
   const user = getCurrentUser();
@@ -51,6 +60,29 @@ export default function DetailPenjualanPage() {
     create_by: true,
   });
   const [showColDropdown, setShowColDropdown] = useState(false);
+
+  // Status Koneksi Printer Bluetooth Real-Time & Toast Notice
+  const [btState, setBtState] = useState<BluetoothPrinterState>({
+    connected: false,
+    connecting: false,
+    deviceName: null,
+    deviceId: null,
+    error: null,
+  });
+  const [printingId, setPrintingId] = useState<number | string | null>(null);
+  const [toastNotice, setToastNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeBluetoothStatus(state => {
+      setBtState(state);
+    });
+    return () => unsub();
+  }, []);
+
+  const showToast = (type: 'success' | 'error' | 'info', text: string) => {
+    setToastNotice({ type, text });
+    setTimeout(() => setToastNotice(null), 3500);
+  };
 
   const startEdit = (row: TrsPenjualanHdr) => {
     setEditCustomer(row.customer);
@@ -151,8 +183,23 @@ export default function DetailPenjualanPage() {
     load(f, t);
   };
 
-  const handlePrint = async (row: TrsPenjualanHdr) => {
+  const handleConnectBluetooth = async () => {
+    try {
+      const res = await connectBluetoothPrinter();
+      showToast('success', `Printer "${res.name}" berhasil terhubung!`);
+      return res;
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        showToast('error', err.message || 'Gagal menghubungkan Bluetooth.');
+      }
+      return null;
+    }
+  };
+
+  const executeThermalPrint = async (row: TrsPenjualanHdr) => {
     setSelected(row);
+    setPrintingId(row.id);
+
     const dtls = ((row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? []).map(d => ({
       nama_barang: d.nama_barang,
       qty: d.qty,
@@ -161,23 +208,80 @@ export default function DetailPenjualanPage() {
       code: d.code,
     }));
 
+    const receiptObj = {
+      invoiceNo: row.nomor_invoice,
+      customer: row.customer,
+      tanggalPenjualan: row.tanggal_penjualan,
+      metodePembayaran: row.metode_pembayaran,
+      items: dtls,
+      total: row.total_harga ?? 0,
+    };
+
+    // 1. Jika sudah terhubung secara native (Bluetooth / USB)
     if (isNativePrinterConnected()) {
       try {
-        await printReceipt({
-          invoiceNo: row.nomor_invoice,
-          customer: row.customer,
-          tanggalPenjualan: row.tanggal_penjualan,
-          metodePembayaran: row.metode_pembayaran,
-          items: dtls,
-          total: row.total_harga ?? 0,
-        });
+        const res = await printReceipt(receiptObj);
+        showToast('success', `Struk #${row.nomor_invoice} berhasil dicetak ke ${btState.deviceName || 'printer'}!`);
+        setPrintingId(null);
         return;
-      } catch (e) {
-        console.warn('Native print gagal, fallback ke window.print:', e);
+      } catch (e: any) {
+        console.warn('Native print gagal, mencoba fallback:', e);
       }
     }
 
-    setTimeout(() => window.print(), 200);
+    // 2. Jika belum terhubung dan browser mendukung Web Bluetooth (misal Chrome di Android)
+    if (isWebBluetoothSupported()) {
+      const confirmConnect = confirm(
+        `Printer Bluetooth belum terhubung.\n\nHubungkan printer thermal Bluetooth (POS-58 / RPP02N) sekarang untuk langsung mencetak struk #${row.nomor_invoice}?`
+      );
+      if (confirmConnect) {
+        try {
+          const connected = await connectBluetoothPrinter();
+          if (connected) {
+            await printReceipt(receiptObj);
+            showToast('success', `Terhubung ke ${connected.name}! Struk #${row.nomor_invoice} berhasil dicetak.`);
+            setPrintingId(null);
+            return;
+          }
+        } catch (err: any) {
+          if (err.name !== 'NotFoundError') {
+            showToast('error', err.message || 'Gagal menghubungkan printer.');
+          }
+          setPrintingId(null);
+          return;
+        }
+      }
+    }
+
+    // 3. Fallback jika tidak menggunakan Bluetooth native (misal di PC / Windows)
+    setTimeout(() => {
+      window.print();
+      setPrintingId(null);
+    }, 200);
+  };
+
+  const handlePrintRawBt = (row: TrsPenjualanHdr) => {
+    try {
+      const dtls = ((row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? []).map(d => ({
+        nama_barang: d.nama_barang,
+        qty: d.qty,
+        harga_jual: d.harga_jual,
+        kategori: d.kategori,
+        code: d.code,
+      }));
+      const bytes = buildReceiptEscPos({
+        invoiceNo: row.nomor_invoice,
+        customer: row.customer,
+        tanggalPenjualan: row.tanggal_penjualan,
+        metodePembayaran: row.metode_pembayaran,
+        items: dtls,
+        total: row.total_harga ?? 0,
+      }, getPrinterSettings());
+      sendToRawBtAndroid(bytes);
+      showToast('info', 'Mengirim data struk ke aplikasi RawBT Android...');
+    } catch (e: any) {
+      alert('Gagal RawBT: ' + e.message);
+    }
   };
 
   // Filter client-side
@@ -292,7 +396,19 @@ export default function DetailPenjualanPage() {
       render: (row: TrsPenjualanHdr) => (
         <div className="table-actions">
           <button className="btn btn-outline btn-sm" onClick={() => { setSelected(row); setDtlModal(true); setIsEditing(false); }} id={`btn-dtl-${row.id}`}>Detail</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => handlePrint(row)} id={`btn-print-${row.id}`}>🖨️</button>
+          <button 
+            className="btn btn-secondary btn-sm" 
+            onClick={() => executeThermalPrint(row)} 
+            disabled={printingId === row.id}
+            id={`btn-print-${row.id}`}
+            title={btState.connected ? `Cetak langsung ke ${btState.deviceName || 'POS-58'}` : 'Cetak struk faktur'}
+            style={{
+              color: btState.connected ? '#2e7d32' : undefined,
+              fontWeight: btState.connected ? 700 : undefined
+            }}
+          >
+            {printingId === row.id ? '⏳' : '🖨️'}
+          </button>
         </div>
       ),
     },
@@ -330,8 +446,88 @@ export default function DetailPenjualanPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Detail Penjualan</h1>
+      {/* Toast Notification Melayang */}
+      {toastNotice && (
+        <div style={{
+          position: 'fixed',
+          top: 24,
+          right: 24,
+          zIndex: 99999,
+          padding: '12px 20px',
+          borderRadius: 8,
+          fontSize: 13.5,
+          fontWeight: 600,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.22)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: toastNotice.type === 'success' ? '#2e7d32' : toastNotice.type === 'error' ? '#c62828' : '#1565c0',
+          color: '#ffffff',
+        }}>
+          <span>{toastNotice.type === 'success' ? '✅' : toastNotice.type === 'error' ? '⚠️' : 'ℹ️'}</span>
+          <span>{toastNotice.text}</span>
+        </div>
+      )}
+
+      {/* Header Halaman dengan Indikator Bluetooth */}
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 className="page-title">Detail Penjualan</h1>
+          <p className="page-subtitle">Riwayat dan cetak ulang struk transaksi penjualan kasir</p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {btState.connected ? (
+            <div 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(46, 125, 50, 0.12)',
+                border: '1px solid rgba(46, 125, 50, 0.35)',
+                padding: '6px 14px',
+                borderRadius: 20,
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#2e7d32'
+              }}
+              title="Printer Bluetooth Siap Cetak Langsung (ESC/POS)"
+            >
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4caf50' }}></span>
+              <span>ᛒ {btState.deviceName || 'POS-58'} (Siap)</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleConnectBluetooth}
+              disabled={btState.connecting}
+              style={{
+                fontSize: 13,
+                padding: '6px 14px',
+                height: 'auto',
+                gap: 6,
+                borderColor: 'rgba(37, 99, 235, 0.4)',
+                color: '#2563eb',
+                fontWeight: 600
+              }}
+              title="Hubungkan printer Bluetooth thermal (POS-58 / RPP02N) untuk cetak ulang langsung"
+            >
+              <span>ᛒ</span>
+              <span>{btState.connecting ? 'Menyambungkan...' : 'ᛒ Hubungkan POS-58'}</span>
+            </button>
+          )}
+
+          <Link 
+            href="/pengaturan/printer" 
+            className="btn btn-secondary" 
+            style={{ fontSize: 13, gap: 6, textDecoration: 'none' }}
+            title="Pengaturan Printer & Struk"
+          >
+            <span>⚙️</span>
+            <span>Pengaturan</span>
+          </Link>
+        </div>
       </div>
 
       {/* Filter */}
@@ -483,8 +679,31 @@ export default function DetailPenjualanPage() {
                   </>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary" onClick={() => handlePrint(selected!)} id="btn-reprint">🖨️ Cetak Ulang Struk</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => executeThermalPrint(selected!)} 
+                  disabled={printingId === selected?.id}
+                  id="btn-reprint"
+                  style={{
+                    color: btState.connected ? '#2e7d32' : undefined,
+                    fontWeight: 600,
+                    borderColor: btState.connected ? '#2e7d32' : undefined,
+                  }}
+                >
+                  {printingId === selected?.id ? '⏳ Mencetak...' : btState.connected ? `🖨️ Cetak Ulang ${btState.deviceName || 'POS-58'} (Direct)` : '🖨️ Cetak Ulang Struk'}
+                </button>
+
+                <button 
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handlePrintRawBt(selected!)}
+                  title="Jalur darurat jika printer Bluetooth versi lama (SPP)"
+                  style={{ fontSize: 12 }}
+                >
+                  📲 RawBT
+                </button>
+
                 <button className="btn btn-outline" onClick={() => { setDtlModal(false); setIsEditing(false); }}>Tutup</button>
               </div>
             </div>
