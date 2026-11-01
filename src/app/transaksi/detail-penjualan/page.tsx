@@ -8,6 +8,7 @@ import { formatRupiah, formatDateTime, today, daysAgo } from '@/lib/utils';
 import type { TrsPenjualanHdr, TrsPenjualanDtl, MetodePembayaran, MsMerk } from '@/lib/types';
 import PrintReceipt from '@/components/ui/PrintReceipt';
 import { getCurrentUser } from '@/lib/auth';
+import { printReceipt, isNativePrinterConnected } from '@/lib/printerService';
 
 export default function DetailPenjualanPage() {
   const user = getCurrentUser();
@@ -150,8 +151,32 @@ export default function DetailPenjualanPage() {
     load(f, t);
   };
 
-  const handlePrint = (row: TrsPenjualanHdr) => {
+  const handlePrint = async (row: TrsPenjualanHdr) => {
     setSelected(row);
+    const dtls = ((row as unknown as { trs_penjualan_dtl?: TrsPenjualanDtl[] }).trs_penjualan_dtl ?? []).map(d => ({
+      nama_barang: d.nama_barang,
+      qty: d.qty,
+      harga_jual: d.harga_jual,
+      kategori: d.kategori,
+      code: d.code,
+    }));
+
+    if (isNativePrinterConnected()) {
+      try {
+        await printReceipt({
+          invoiceNo: row.nomor_invoice,
+          customer: row.customer,
+          tanggalPenjualan: row.tanggal_penjualan,
+          metodePembayaran: row.metode_pembayaran,
+          items: dtls,
+          total: row.total_harga ?? 0,
+        });
+        return;
+      } catch (e) {
+        console.warn('Native print gagal, fallback ke window.print:', e);
+      }
+    }
+
     setTimeout(() => window.print(), 200);
   };
 

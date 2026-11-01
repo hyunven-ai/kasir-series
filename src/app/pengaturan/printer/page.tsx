@@ -13,6 +13,26 @@ import {
   PrinterConnectionType,
   DEFAULT_PRINTER_SETTINGS 
 } from '@/lib/printerSettings';
+import { 
+  connectBluetoothPrinter, 
+  disconnectBluetoothPrinter, 
+  subscribeBluetoothStatus, 
+  BluetoothPrinterState, 
+  isWebBluetoothSupported 
+} from '@/lib/bluetoothPrinter';
+import { 
+  connectUsbPrinter, 
+  disconnectUsbPrinter, 
+  subscribeUsbStatus, 
+  UsbPrinterState, 
+  isWebUsbSupported 
+} from '@/lib/usbPrinter';
+import { 
+  testPrintNative, 
+  sendToRawBtAndroid, 
+  isNativePrinterConnected 
+} from '@/lib/printerService';
+import { buildTestReceiptEscPos } from '@/lib/escpos';
 import PrintReceipt from '@/components/ui/PrintReceipt';
 import Modal from '@/components/ui/Modal';
 
@@ -21,6 +41,23 @@ export default function PrinterSettingsPage() {
   const [activeTab, setActiveTab] = useState<'devices' | 'receipt'>('devices');
   const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
   const [testPrintActive, setTestPrintActive] = useState(false);
+
+  // Status Koneksi Hardware Real-Time
+  const [btState, setBtState] = useState<BluetoothPrinterState>({
+    connected: false,
+    connecting: false,
+    deviceName: null,
+    deviceId: null,
+    error: null,
+  });
+  const [usbState, setUsbState] = useState<UsbPrinterState>({
+    connected: false,
+    connecting: false,
+    deviceName: null,
+    error: null,
+  });
+  const [nativeActionLoading, setNativeActionLoading] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   // Modal Tambah Printer
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,8 +81,26 @@ export default function PrinterSettingsPage() {
     refreshSettings();
     const handleUpdate = () => refreshSettings();
     window.addEventListener('printer-settings-updated', handleUpdate);
-    return () => window.removeEventListener('printer-settings-updated', handleUpdate);
+
+    // Subscribe ke status live Web Bluetooth & WebUSB
+    const unsubBt = subscribeBluetoothStatus(state => {
+      setBtState(state);
+    });
+    const unsubUsb = subscribeUsbStatus(state => {
+      setUsbState(state);
+    });
+
+    return () => {
+      window.removeEventListener('printer-settings-updated', handleUpdate);
+      unsubBt();
+      unsubUsb();
+    };
   }, []);
+
+  const showNotice = (type: 'success' | 'error' | 'info', text: string) => {
+    setActionNotice({ type, text });
+    setTimeout(() => setActionNotice(null), 4000);
+  };
 
   const handleChange = (field: keyof PrinterSettings, value: any) => {
     setSettings(prev => ({ ...prev, [field]: value }));
@@ -63,6 +118,102 @@ export default function PrinterSettingsPage() {
       setSettings(def);
       setSavedSuccess('Pengaturan berhasil direset ke default!');
       setTimeout(() => setSavedSuccess(null), 3000);
+    }
+  };
+
+  // Koneksi Langsung Native Web Bluetooth (BLE)
+  const handleConnectBtDirect = async () => {
+    setNativeActionLoading('bt_connect');
+    try {
+      const result = await connectBluetoothPrinter();
+      showNotice('success', `Printer Bluetooth "${result.name}" berhasil terhubung via BLE Native!`);
+
+      // Cek apakah perangkat sudah ada di settings, jika belum tambahkan otomatis
+      const exists = settings.devices.some(d => d.connectionType === 'bluetooth' && (d.name === result.name || d.targetAddress === result.id));
+      if (!exists) {
+        addPrinterDevice({
+          name: result.name,
+          connectionType: 'bluetooth',
+          paperWidth: settings.paperWidth || '58mm',
+          targetAddress: result.id,
+          isDefault: settings.devices.length === 0 || !settings.devices.some(d => d.isDefault),
+          status: 'connected',
+        });
+      }
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        showNotice('error', err.message || 'Gagal menyambungkan Bluetooth.');
+      }
+    } finally {
+      setNativeActionLoading(null);
+    }
+  };
+
+  const handleDisconnectBtDirect = async () => {
+    try {
+      await disconnectBluetoothPrinter();
+      showNotice('info', 'Koneksi Bluetooth diputuskan.');
+    } catch (e: any) {
+      showNotice('error', e.message || 'Gagal memutuskan Bluetooth.');
+    }
+  };
+
+  // Koneksi Langsung Native WebUSB (OTG)
+  const handleConnectUsbDirect = async () => {
+    setNativeActionLoading('usb_connect');
+    try {
+      const result = await connectUsbPrinter();
+      showNotice('success', `Printer USB "${result.name}" berhasil terhubung via OTG Native!`);
+
+      const exists = settings.devices.some(d => d.connectionType === 'usb' && d.name === result.name);
+      if (!exists) {
+        addPrinterDevice({
+          name: result.name,
+          connectionType: 'usb',
+          paperWidth: settings.paperWidth || '58mm',
+          isDefault: settings.devices.length === 0,
+          status: 'connected',
+        });
+      }
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        showNotice('error', err.message || 'Gagal menyambungkan USB.');
+      }
+    } finally {
+      setNativeActionLoading(null);
+    }
+  };
+
+  const handleDisconnectUsbDirect = async () => {
+    try {
+      await disconnectUsbPrinter();
+      showNotice('info', 'Koneksi USB diputuskan.');
+    } catch (e: any) {
+      showNotice('error', e.message || 'Gagal memutuskan USB.');
+    }
+  };
+
+  // Tes Cetak Native ESC/POS Langsung ke Printer Thermal
+  const handleTestPrintDirect = async (deviceName?: string, paperWidth?: '58mm' | '80mm') => {
+    setNativeActionLoading('testing_print');
+    try {
+      const res = await testPrintNative(deviceName, paperWidth || settings.paperWidth);
+      showNotice('success', res.message || 'Tes cetak ESC/POS berhasil!');
+    } catch (err: any) {
+      showNotice('error', err.message || 'Gagal menjalankan tes print native.');
+    } finally {
+      setNativeActionLoading(null);
+    }
+  };
+
+  // Fallback RawBT untuk Android dengan printer Bluetooth Classic SPP 2.0
+  const handleTestRawBtFallback = (deviceName?: string) => {
+    try {
+      const bytes = buildTestReceiptEscPos(deviceName || 'Thermal Printer', settings.paperWidth, 'RawBT Android Fallback');
+      sendToRawBtAndroid(bytes);
+      showNotice('info', 'Mengirim data ke aplikasi RawBT...');
+    } catch (err: any) {
+      showNotice('error', err.message || 'Gagal mengirim ke RawBT.');
     }
   };
 
@@ -91,26 +242,19 @@ export default function PrinterSettingsPage() {
     setStepModal('form');
   };
 
-  // Web Bluetooth Scan
+  // Web Bluetooth Scan & Connect
   const handleScanBluetooth = async () => {
     setBluetoothError(null);
     setScanningBluetooth(true);
     try {
-      if (!(navigator as any).bluetooth) {
-        setBluetoothError('Browser ini belum mendukung Web Bluetooth secara langsung. Anda dapat memasukkan nama printer manual (misal: RPP02N atau POS-58).');
+      if (!isWebBluetoothSupported()) {
+        setBluetoothError('Browser ini belum mendukung Web Bluetooth secara langsung. Gunakan Google Chrome di Android.');
         return;
       }
-      const device = await (navigator as any).bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: [
-          '000018f0-0000-1000-8000-00805f9b34fb',
-          'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-          '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-        ],
-      });
-      if (device && device.name) {
-        setNewPrinterName(device.name);
-        setNewPrinterAddress(device.id || 'Bluetooth Paired');
+      const conn = await connectBluetoothPrinter();
+      if (conn && conn.name) {
+        setNewPrinterName(conn.name);
+        setNewPrinterAddress(conn.id || 'Bluetooth Paired');
       }
     } catch (err: any) {
       if (err.name !== 'NotFoundError') {
@@ -157,6 +301,13 @@ export default function PrinterSettingsPage() {
   };
 
   const handleTestPrint = (deviceName?: string) => {
+    // Jika ada native printer terhubung, utamakan cetak native
+    if (btState.connected || usbState.connected) {
+      handleTestPrintDirect(deviceName);
+      return;
+    }
+
+    // Fallback ke window.print() untuk laptop/PC
     setTestPrintActive(true);
     setTimeout(() => {
       window.print();
@@ -267,50 +418,180 @@ export default function PrinterSettingsPage() {
       {activeTab === 'devices' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           
-          {/* Status summary banner */}
-          <div className="card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ 
-                width: 44, 
-                height: 44, 
-                borderRadius: '50%', 
-                background: settings.devices.length > 0 ? 'rgba(46, 125, 50, 0.15)' : 'var(--bg-card-hover)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 22
-              }}>
-                {settings.devices.length > 0 ? '🖨️' : '🔌'}
-              </div>
-              <div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Status Printer Utama:</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {activeDevice ? (
-                    <span style={{ color: '#4caf50' }}>
-                      Terhubung: {activeDevice.name} ({activeDevice.paperWidth})
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--text-secondary)' }}>Belum ada printer terhubung</span>
-                  )}
+          {actionNotice && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: actionNotice.type === 'success' ? 'rgba(46, 125, 50, 0.15)' : actionNotice.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(37, 99, 235, 0.15)',
+              border: `1px solid ${actionNotice.type === 'success' ? '#4caf50' : actionNotice.type === 'error' ? '#ef4444' : '#3b82f6'}`,
+              color: actionNotice.type === 'success' ? '#4caf50' : actionNotice.type === 'error' ? '#ef4444' : '#3b82f6',
+            }}>
+              <span>{actionNotice.type === 'success' ? '✅' : actionNotice.type === 'error' ? '⚠️' : 'ℹ️'}</span>
+              <span>{actionNotice.text}</span>
+            </div>
+          )}
+
+          {/* Status summary banner: Smart Hybrid Driver Engine */}
+          <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ 
+                  width: 50, 
+                  height: 50, 
+                  borderRadius: '50%', 
+                  background: (btState.connected || usbState.connected) ? 'rgba(46, 125, 50, 0.2)' : 'var(--bg-card-hover)',
+                  border: `2px solid ${(btState.connected || usbState.connected) ? '#4caf50' : 'var(--border-medium)'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 24
+                }}>
+                  {btState.connected ? 'ᛒ' : usbState.connected ? '🔌' : '🖨️'}
                 </div>
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Status Koneksi Native (ESC/POS Direct):</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {btState.connected ? (
+                      <span style={{ color: '#4caf50', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#4caf50' }}></span>
+                        Terhubung (Bluetooth BLE): {btState.deviceName}
+                      </span>
+                    ) : usbState.connected ? (
+                      <span style={{ color: '#4caf50', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#4caf50' }}></span>
+                        Terhubung (WebUSB OTG): {usbState.deviceName}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#94a3b8' }}></span>
+                        Belum Terhubung Native (Mode Bawaan Browser)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {btState.connected ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleTestPrintDirect(btState.deviceName || undefined)}
+                      disabled={nativeActionLoading !== null}
+                      style={{ fontSize: 13, height: 36, gap: 6, fontWeight: 600 }}
+                    >
+                      {nativeActionLoading === 'testing_print' ? '⏳ Mencetak...' : '🖨️ Tes Print Native (ESC/POS)'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleDisconnectBtDirect}
+                      style={{ fontSize: 13, height: 36, gap: 6, color: '#ef4444' }}
+                    >
+                      🔴 Putuskan
+                    </button>
+                  </>
+                ) : usbState.connected ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleTestPrintDirect(usbState.deviceName || undefined)}
+                      disabled={nativeActionLoading !== null}
+                      style={{ fontSize: 13, height: 36, gap: 6, fontWeight: 600 }}
+                    >
+                      {nativeActionLoading === 'testing_print' ? '⏳ Mencetak...' : '🖨️ Tes Print Native (ESC/POS)'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleDisconnectUsbDirect}
+                      style={{ fontSize: 13, height: 36, gap: 6, color: '#ef4444' }}
+                    >
+                      🔴 Putuskan
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleConnectBtDirect}
+                      disabled={nativeActionLoading === 'bt_connect'}
+                      style={{ 
+                        fontSize: 13, 
+                        height: 36, 
+                        gap: 6, 
+                        fontWeight: 600, 
+                        background: 'rgba(37, 99, 235, 0.1)', 
+                        borderColor: 'rgba(37, 99, 235, 0.4)',
+                        color: '#3b82f6'
+                      }}
+                    >
+                      {nativeActionLoading === 'bt_connect' ? '⏳ Menyambungkan...' : 'ᛒ Hubungkan Bluetooth'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleConnectUsbDirect}
+                      disabled={nativeActionLoading === 'usb_connect'}
+                      style={{ 
+                        fontSize: 13, 
+                        height: 36, 
+                        gap: 6, 
+                        fontWeight: 600, 
+                        background: 'rgba(147, 51, 234, 0.1)', 
+                        borderColor: 'rgba(147, 51, 234, 0.4)',
+                        color: '#a855f7'
+                      }}
+                    >
+                      {nativeActionLoading === 'usb_connect' ? '⏳ Menyambungkan...' : '🔌 Hubungkan USB OTG'}
+                    </button>
+                  </>
+                )}
+
+                <button 
+                  type="button" 
+                  className="btn btn-primary"
+                  onClick={handleOpenAddModal}
+                  style={{ background: '#e53935', fontWeight: 600, height: 36, fontSize: 13 }}
+                >
+                  ➕ Tambah Printer
+                </button>
               </div>
             </div>
 
-            <button 
-              type="button" 
-              className="btn btn-primary"
-              onClick={handleOpenAddModal}
-              style={{ background: '#e53935', fontWeight: 600 }}
-            >
-              ➕ Tambah Printer
-            </button>
+            {/* Android Driver Info Tip */}
+            <div style={{
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 12.5,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10
+            }}>
+              <span style={{ fontSize: 18 }}>💡</span>
+              <div>
+                <strong style={{ color: 'var(--text-primary)' }}>Tips Kasir Android / Tablet:</strong> Untuk mencetak langsung tanpa dialog PDF Android, klik <strong>"Hubungkan Bluetooth"</strong> sekali saat awal shift kerja. Printer thermal (RPP02N, PT-210, POS-58) akan langsung mengeluarkan struk kasir dalam 0 detik!
+              </div>
+            </div>
           </div>
 
           {/* List or Empty State */}
           {settings.devices.length === 0 ? (
             /* EMPTY STATE LIKE USER SCREENSHOT */
             <div className="card" style={{ padding: '60px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {/* Illustrated Printer Icon matching screenshot 2 */}
               <div style={{ 
                 width: 120, 
                 height: 120, 
@@ -336,7 +617,7 @@ export default function PrinterSettingsPage() {
                 Belum ada printer ditambahkan
               </h2>
               <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', maxWidth: 460, marginBottom: 24, lineHeight: 1.55 }}>
-                Hubungkan printer thermal kasir via Bluetooth, Wi-Fi / LAN, atau kabel USB driver untuk mencetak struk kasir secara otomatis.
+                Hubungkan printer thermal kasir via Bluetooth BLE, kabel USB OTG, atau driver sistem untuk mencetak struk kasir secara instan.
               </p>
 
               <button
@@ -359,106 +640,210 @@ export default function PrinterSettingsPage() {
           ) : (
             /* LIST OF ADDED PRINTERS */
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-              {settings.devices.map(device => (
-                <div 
-                  key={device.id} 
-                  className="card"
-                  style={{ 
-                    border: device.isDefault ? '2px solid #4caf50' : '1px solid var(--border-light)',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {device.isDefault && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      background: '#4caf50',
-                      color: '#fff',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: '3px 10px',
-                      borderBottomLeftRadius: 6,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.5
-                    }}>
-                      ⭐ Default (Utama)
-                    </div>
-                  )}
+              {settings.devices.map(device => {
+                const isBtActive = device.connectionType === 'bluetooth' && btState.connected && (btState.deviceName === device.name || btState.deviceId === device.targetAddress);
+                const isUsbActive = device.connectionType === 'usb' && usbState.connected && usbState.deviceName === device.name;
+                const isLiveConnected = isBtActive || isUsbActive;
 
-                  <div className="card-body" style={{ padding: 18 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                return (
+                  <div 
+                    key={device.id} 
+                    className="card"
+                    style={{ 
+                      border: isLiveConnected ? '2px solid #4caf50' : device.isDefault ? '2px solid #3b82f6' : '1px solid var(--border-light)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {isLiveConnected ? (
                       <div style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 8,
-                        background: device.connectionType === 'bluetooth' ? 'rgba(37, 99, 235, 0.15)' : device.connectionType === 'network' ? 'rgba(22, 163, 74, 0.15)' : 'rgba(147, 51, 234, 0.15)',
-                        color: device.connectionType === 'bluetooth' ? '#3b82f6' : device.connectionType === 'network' ? '#22c55e' : '#a855f7',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 22,
-                        flexShrink: 0
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        background: '#4caf50',
+                        color: '#fff',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '3px 10px',
+                        borderBottomLeftRadius: 6,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5
                       }}>
-                        {device.connectionType === 'bluetooth' ? 'ᛒ' : device.connectionType === 'network' ? '📶' : '🔌'}
+                        🟢 Terhubung Aktif
                       </div>
+                    ) : device.isDefault ? (
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        background: '#3b82f6',
+                        color: '#fff',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '3px 10px',
+                        borderBottomLeftRadius: 6,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5
+                      }}>
+                        ⭐ Default (Utama)
+                      </div>
+                    ) : null}
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0, marginBottom: 2 }}>
-                          {device.name}
-                        </h3>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span>
-                            {device.connectionType === 'bluetooth' ? 'Bluetooth' : device.connectionType === 'network' ? 'Wi-Fi / LAN' : 'USB / Driver'}
-                          </span>
-                          <span>•</span>
-                          <span className="badge badge-info" style={{ fontSize: 10 }}>{device.paperWidth}</span>
+                    <div className="card-body" style={{ padding: 18 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 8,
+                          background: device.connectionType === 'bluetooth' ? 'rgba(37, 99, 235, 0.15)' : device.connectionType === 'network' ? 'rgba(22, 163, 74, 0.15)' : 'rgba(147, 51, 234, 0.15)',
+                          color: device.connectionType === 'bluetooth' ? '#3b82f6' : device.connectionType === 'network' ? '#22c55e' : '#a855f7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 22,
+                          flexShrink: 0
+                        }}>
+                          {device.connectionType === 'bluetooth' ? 'ᛒ' : device.connectionType === 'network' ? '📶' : '🔌'}
                         </div>
-                        {device.targetAddress && (
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'monospace' }}>
-                            {device.targetAddress}{device.port ? `:${device.port}` : ''}
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0, marginBottom: 2 }}>
+                            {device.name}
+                          </h3>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>
+                              {device.connectionType === 'bluetooth' ? 'Bluetooth' : device.connectionType === 'network' ? 'Wi-Fi / LAN' : 'USB / Driver'}
+                            </span>
+                            <span>•</span>
+                            <span className="badge badge-info" style={{ fontSize: 10 }}>{device.paperWidth}</span>
                           </div>
-                        )}
+                          {device.targetAddress && (
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, fontFamily: 'monospace' }}>
+                              {device.targetAddress}{device.port ? `:${device.port}` : ''}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={{ borderTop: '1px solid var(--border-light)', marginTop: 14, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => handleTestPrint(device.name)}
-                        style={{ fontSize: 12, height: 32, padding: '0 10px' }}
-                      >
-                        🖨️ Test Cetak
-                      </button>
+                      {/* Action buttons inside card */}
+                      <div style={{ borderTop: '1px solid var(--border-light)', marginTop: 14, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          {/* Print Action */}
+                          {isLiveConnected ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => handleTestPrintDirect(device.name, device.paperWidth)}
+                              disabled={nativeActionLoading === 'testing_print'}
+                              style={{ fontSize: 12, height: 32, padding: '0 10px', fontWeight: 600, color: '#4caf50' }}
+                            >
+                              🖨️ Tes Native ESC/POS
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => handleTestPrint(device.name)}
+                              style={{ fontSize: 12, height: 32, padding: '0 10px' }}
+                            >
+                              🖨️ Test Cetak
+                            </button>
+                          )}
 
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {!device.isDefault && (
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={() => handleSetDefaultDevice(device.id, device.name)}
-                            style={{ fontSize: 12, height: 32, padding: '0 10px' }}
-                            title="Jadikan printer utama"
-                          >
-                            Set Default
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => handleDeleteDevice(device.id, device.name)}
-                          style={{ fontSize: 12, height: 32, padding: '0 8px', color: '#e53935' }}
-                          title="Hapus printer"
-                        >
-                          🗑️
-                        </button>
+                          {/* Connection toggle */}
+                          {device.connectionType === 'bluetooth' && (
+                            isBtActive ? (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={handleDisconnectBtDirect}
+                                style={{ fontSize: 12, height: 32, padding: '0 10px', color: '#ef4444' }}
+                              >
+                                Putuskan
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={handleConnectBtDirect}
+                                style={{ fontSize: 12, height: 32, padding: '0 10px', color: '#3b82f6', fontWeight: 600 }}
+                              >
+                                ⚡ Hubungkan BLE
+                              </button>
+                            )
+                          )}
+
+                          {device.connectionType === 'usb' && (
+                            isUsbActive ? (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={handleDisconnectUsbDirect}
+                                style={{ fontSize: 12, height: 32, padding: '0 10px', color: '#ef4444' }}
+                              >
+                                Putuskan
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={handleConnectUsbDirect}
+                                style={{ fontSize: 12, height: 32, padding: '0 10px', color: '#a855f7', fontWeight: 600 }}
+                              >
+                                🔌 Sambung OTG
+                              </button>
+                            )
+                          )}
+                        </div>
+
+                        {/* Bottom Row: Default toggle, RawBT fallback, Delete */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
+                          {device.connectionType === 'bluetooth' && (
+                            <button
+                              type="button"
+                              onClick={() => handleTestRawBtFallback(device.name)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                fontSize: 11,
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                padding: 0
+                              }}
+                              title="Jalur darurat jika printer Bluetooth lama (SPP 2.0)"
+                            >
+                              📲 Buka di RawBT
+                            </button>
+                          )}
+                          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                            {!device.isDefault && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => handleSetDefaultDevice(device.id, device.name)}
+                                style={{ fontSize: 11, height: 28, padding: '0 8px' }}
+                                title="Jadikan printer utama"
+                              >
+                                Set Default
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => handleDeleteDevice(device.id, device.name)}
+                              style={{ fontSize: 11, height: 28, padding: '0 8px', color: '#e53935' }}
+                              title="Hapus printer"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -893,14 +1278,52 @@ export default function PrinterSettingsPage() {
                 </div>
 
                 <div style={{ marginTop: 20, width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => handleTestPrint()}
-                    style={{ width: '100%', height: 42, fontSize: 14, fontWeight: 700, background: '#e53935' }}
-                  >
-                    🖨️ Test Cetak Struk Fisik
-                  </button>
+                  {(btState.connected || usbState.connected) ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => handleTestPrintDirect(undefined, settings.paperWidth)}
+                        disabled={nativeActionLoading === 'testing_print'}
+                        style={{ width: '100%', height: 42, fontSize: 14, fontWeight: 700, background: '#4caf50' }}
+                      >
+                        {nativeActionLoading === 'testing_print' ? '⏳ Mencetak ke Thermal...' : `🖨️ Tes Cetak Native ESC/POS (${btState.connected ? btState.deviceName : usbState.deviceName})`}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setTestPrintActive(true);
+                          setTimeout(() => {
+                            window.print();
+                            setTimeout(() => setTestPrintActive(false), 1000);
+                          }, 200);
+                        }}
+                        style={{ width: '100%', height: 36, fontSize: 13 }}
+                      >
+                        📄 Tes via Dialog Browser (window.print)
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => handleTestPrint()}
+                        style={{ width: '100%', height: 42, fontSize: 14, fontWeight: 700, background: '#e53935' }}
+                      >
+                        🖨️ Test Cetak Struk Fisik (Browser)
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={handleConnectBtDirect}
+                        style={{ width: '100%', height: 36, fontSize: 13, color: '#3b82f6', fontWeight: 600 }}
+                      >
+                        ᛒ Hubungkan Bluetooth untuk Cetak Native Instan
+                      </button>
+                    </>
+                  )}
                 </div>
 
               </div>

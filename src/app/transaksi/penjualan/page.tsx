@@ -10,6 +10,18 @@ import PrintReceipt from '@/components/ui/PrintReceipt';
 import BarcodeScannerModal from '@/components/ui/BarcodeScannerModal';
 import NumericInput from '@/components/ui/NumericInput';
 import { getPrinterSettings } from '@/lib/printerSettings';
+import { 
+  printReceipt, 
+  isNativePrinterConnected, 
+  getActiveNativePrinterInfo, 
+  sendToRawBtAndroid 
+} from '@/lib/printerService';
+import { 
+  connectBluetoothPrinter, 
+  subscribeBluetoothStatus, 
+  BluetoothPrinterState 
+} from '@/lib/bluetoothPrinter';
+import { buildReceiptEscPos } from '@/lib/escpos';
 
 const METODE_OPTIONS: MetodePembayaran[] = ['Tunai', 'Debit', 'Transfer', 'QRIS'];
 
@@ -55,6 +67,24 @@ export default function PenjualanPage() {
     total: number;
     bayar?: number;
   } | null>(null);
+
+  // Status Koneksi Printer Bluetooth Real-Time
+  const [btState, setBtState] = useState<BluetoothPrinterState>({
+    connected: false,
+    connecting: false,
+    deviceName: null,
+    deviceId: null,
+    error: null,
+  });
+  const [printing, setPrinting] = useState(false);
+  const [printNotice, setPrintNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeBluetoothStatus(state => {
+      setBtState(state);
+    });
+    return () => unsub();
+  }, []);
 
   const [scannerOpen, setScannerOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -304,7 +334,7 @@ export default function PenjualanPage() {
         }))
       );
       setLastInvoice(invoiceNo);
-      setPrintData({
+      const newPrintData = {
         invoiceNo,
         customer,
         tanggalPenjualan: transactionDateTime.toISOString(),
@@ -312,12 +342,21 @@ export default function PenjualanPage() {
         items: [...cart],
         total,
         bayar: bayar ? parseInt(bayar) : total,
-      });
+      };
+      setPrintData(newPrintData);
       setCheckoutModal(false);
       setSuccessModal(true);
+
       if (getPrinterSettings().autoPrint) {
-        setTimeout(() => window.print(), 350);
+        setTimeout(async () => {
+          try {
+            await printReceipt(newPrintData);
+          } catch {
+            window.print();
+          }
+        }, 300);
       }
+
       setCart([]);
       setBayar('');
       setCustomer('Umum');
@@ -334,8 +373,45 @@ export default function PenjualanPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!printData) return;
+    setPrinting(true);
+    try {
+      const res = await printReceipt(printData);
+      if (res.method === 'bluetooth' || res.method === 'usb') {
+        setPrintNotice({ type: 'success', text: res.message || 'Struk berhasil dicetak ke printer!' });
+        setTimeout(() => setPrintNotice(null), 3500);
+      }
+    } catch (err: any) {
+      console.warn('Gagal cetak native, fallback ke dialog browser:', err);
+      window.print();
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handlePrintRawBt = () => {
+    if (!printData) return;
+    try {
+      const bytes = buildReceiptEscPos(printData, getPrinterSettings());
+      sendToRawBtAndroid(bytes);
+      setPrintNotice({ type: 'info', text: 'Mengirim struk ke RawBT Android...' });
+      setTimeout(() => setPrintNotice(null), 3000);
+    } catch (err: any) {
+      alert('Gagal mengirim ke RawBT: ' + err.message);
+    }
+  };
+
+  const handleQuickConnectBt = async () => {
+    try {
+      const res = await connectBluetoothPrinter();
+      setPrintNotice({ type: 'success', text: `Printer "${res.name}" berhasil terhubung!` });
+      setTimeout(() => setPrintNotice(null), 3500);
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        alert(err.message || 'Gagal menyambungkan Bluetooth.');
+      }
+    }
   };
 
   return (
@@ -345,15 +421,58 @@ export default function PenjualanPage() {
           <h1 className="page-title">Kasir</h1>
           <p className="page-subtitle">{today()} | {user?.nama_lengkap}</p>
         </div>
-        <Link 
-          href="/pengaturan/printer" 
-          className="btn btn-secondary" 
-          style={{ fontSize: 13, gap: 6, textDecoration: 'none' }}
-          title="Pengaturan Kertas & Struk Kasir"
-        >
-          <span>🖨️</span>
-          <span>Pengaturan Printer</span>
-        </Link>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {btState.connected ? (
+            <div 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(46, 125, 50, 0.12)',
+                border: '1px solid rgba(46, 125, 50, 0.35)',
+                padding: '6px 12px',
+                borderRadius: 20,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: '#2e7d32'
+              }}
+              title="Printer Bluetooth Aktif & Siap Mencetak Otomatis (ESC/POS)"
+            >
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4caf50' }}></span>
+              <span>ᛒ {btState.deviceName || 'Thermal Printer'}</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleQuickConnectBt}
+              disabled={btState.connecting}
+              style={{
+                fontSize: 12.5,
+                padding: '6px 12px',
+                height: 'auto',
+                gap: 6,
+                borderColor: 'rgba(37, 99, 235, 0.4)',
+                color: '#2563eb',
+                fontWeight: 600
+              }}
+              title="Hubungkan Printer Bluetooth untuk mencetak struk secara langsung tanpa dialog Android"
+            >
+              <span>ᛒ</span>
+              <span>{btState.connecting ? 'Menyambungkan...' : 'Hubungkan Printer'}</span>
+            </button>
+          )}
+
+          <Link 
+            href="/pengaturan/printer" 
+            className="btn btn-secondary" 
+            style={{ fontSize: 13, gap: 6, textDecoration: 'none' }}
+            title="Pengaturan Kertas & Struk Kasir"
+          >
+            <span>🖨️</span>
+            <span>Pengaturan</span>
+          </Link>
+        </div>
       </div>
 
       <div className="pos-layout">
@@ -963,17 +1082,118 @@ export default function PenjualanPage() {
       {/* Success Modal */}
       {successModal && (
         <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: 380, textAlign: 'center' }}>
-            <div className="modal-body" style={{ padding: 40 }}>
-              <div style={{ fontSize: 60, marginBottom: 16 }}>✅</div>
-              <h2 style={{ fontFamily: 'Outfit', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Transaksi Berhasil!</h2>
+          <div className="modal" style={{ maxWidth: 420, textAlign: 'center' }}>
+            <div className="modal-body" style={{ padding: '32px 24px' }}>
+              <div style={{ fontSize: 54, marginBottom: 12 }}>✅</div>
+              <h2 style={{ fontFamily: 'Outfit', fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Transaksi Berhasil!</h2>
               <p style={{ color: '#888', fontSize: 13 }}>No. Invoice: <strong>{lastInvoice}</strong></p>
-              <p style={{ color: '#888', fontSize: 13, marginBottom: 24 }}>Total: <strong style={{ color: '#1565c0' }}>{formatRupiah(printData?.total ?? 0)}</strong></p>
+              <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>Total: <strong style={{ color: '#1565c0' }}>{formatRupiah(printData?.total ?? 0)}</strong></p>
+
+              {/* Status Notice */}
+              {printNotice && (
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  marginBottom: 16,
+                  background: printNotice.type === 'success' ? 'rgba(46, 125, 50, 0.15)' : 'rgba(37, 99, 235, 0.15)',
+                  color: printNotice.type === 'success' ? '#2e7d32' : '#2563eb',
+                  border: `1px solid ${printNotice.type === 'success' ? '#4caf50' : '#3b82f6'}`
+                }}>
+                  {printNotice.type === 'success' ? '✅' : 'ℹ️'} {printNotice.text}
+                </div>
+              )}
+
+              {/* Status Printer Indicator */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                padding: '8px 12px',
+                marginBottom: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ 
+                    width: 8, 
+                    height: 8, 
+                    borderRadius: '50%', 
+                    background: btState.connected ? '#4caf50' : '#94a3b8' 
+                  }}></span>
+                  <span style={{ color: btState.connected ? '#166534' : '#64748b', fontWeight: 600 }}>
+                    {btState.connected ? `Bluetooth: ${btState.deviceName}` : 'Printer Bluetooth Belum Terhubung'}
+                  </span>
+                </div>
+
+                {!btState.connected && (
+                  <button
+                    type="button"
+                    onClick={handleQuickConnectBt}
+                    disabled={btState.connecting}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2563eb',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      padding: 0
+                    }}
+                  >
+                    {btState.connecting ? 'Menyambungkan...' : 'ᛒ Konek Sekarang'}
+                  </button>
+                )}
+              </div>
+
               <div style={{ display: 'flex', gap: 10 }}>
-                <button className="btn btn-outline w-full" onClick={handlePrint} id="btn-print-receipt">🖨️ Cetak Struk</button>
-                <button className="btn btn-primary w-full" onClick={() => { setSuccessModal(false); barcodeRef.current?.focus(); }} id="btn-close-success">
+                <button 
+                  className="btn btn-outline w-full" 
+                  onClick={handlePrint} 
+                  disabled={printing}
+                  id="btn-print-receipt"
+                  style={{ 
+                    fontWeight: 600, 
+                    borderColor: btState.connected ? '#2e7d32' : undefined,
+                    color: btState.connected ? '#2e7d32' : undefined,
+                  }}
+                >
+                  {printing ? '⏳ Mencetak...' : btState.connected ? '🖨️ Cetak Direct (0s)' : '🖨️ Cetak Struk'}
+                </button>
+                <button 
+                  className="btn btn-primary w-full" 
+                  onClick={() => { setSuccessModal(false); barcodeRef.current?.focus(); }} 
+                  id="btn-close-success"
+                >
                   Transaksi Baru
                 </button>
+              </div>
+
+              {/* Alternative Fallback for Old Android SPP */}
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 12, fontSize: 11.5 }}>
+                <button
+                  type="button"
+                  onClick={handlePrintRawBt}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  📲 Kirim ke RawBT App
+                </button>
+                <span style={{ color: '#cbd5e1' }}>•</span>
+                <Link
+                  href="/pengaturan/printer"
+                  style={{ color: '#64748b', textDecoration: 'underline' }}
+                >
+                  ⚙️ Pengaturan Printer
+                </Link>
               </div>
             </div>
           </div>
